@@ -9,35 +9,23 @@ using Telegram.Bot.Types.InputFiles;
 using Telegram.Bot.Types.ReplyMarkups;
 using static TelegramBot_SampleFunctionalities.Functions;
 using static TelegramBot_SampleFunctionalities.StageHandling;
+using static TelegramBot_SampleFunctionalities.Constants;
 
 namespace TelegramBot_SampleFunctionalities
 {
 
     public static class Program
     {
-        static Stage stage = Stage.SendingLongboards;
-
         static void Main()
         {
-            var Bot = new TelegramBotClient("821836757:AAHFbFgSrbrvpGVpzCYWZAwG2Jzo7Cbl1m8");
+            var Bot = new TelegramBotClient(ApiToken);
             Bot.StartReceiving();
             Bot.OnUpdate += async (obj, args) =>
             {
-                var chatId = args?.Update?.Message?.Chat?.Id;
-
-                if (chatId == null)
+                if (args.Update.Message.Chat.Id == AdminGroupChatId)
                     return;
 
-                try
-                {
-                    await HandleUpdate(Bot, args.Update, stage, null);
-                    
-
-                }
-                catch (Exception e)
-                {
-                    await Bot.SendTextMessageAsync(chatId, e.Message + "\n" + e.StackTrace);
-                }
+                await HandleUpdate(Bot, args.Update);
             };
 
             Console.ReadKey();
