@@ -15,10 +15,31 @@
     <None Update="LongBoardsPhotos\Carving.jpg">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="LongBoardsPhotos\Carving\Text.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="LongBoardsPhotos\Cruiser.jpg">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="LongBoardsPhotos\Other.jpg">
+    <None Update="LongBoardsPhotos\Cruiser\1.jpg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="LongBoardsPhotos\Cruiser\2.jpg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="LongBoardsPhotos\Cruiser\3.jpg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="LongBoardsPhotos\Cruiser\Text.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="LongBoardsPhotos\Downhill.jpg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="LongBoardsPhotos\Downhill\Text.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Texts\FinalMessage.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

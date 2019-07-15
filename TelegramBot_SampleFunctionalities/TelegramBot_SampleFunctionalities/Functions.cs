@@ -23,6 +23,73 @@ namespace TelegramBot_SampleFunctionalities
                 hasUserName ? "Введите контактный номер телефона (по желанию)"
                 : "У вас нет username в телеграме. Введите ваш номер телефона, иначе мы не сможем с вами связаться");
 
+        public static async Task SendInfoAbout(string board, BotUser user, TelegramBotClient client)
+        {
+            var chatId = user.Id;
+            var info = GetInfoAsync(board);
+            var textFile = info.First(i => i.Name == TextFileName);
+            var photos = info.Where(i => i.Extension == ImageExtension);
+
+            string text;
+            using (var reader = new StreamReader(textFile.FullName))
+            {
+                text = await reader.ReadToEndAsync();
+            }
+
+            var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, "Идет отправка фотографий...");
+            var photosMsgTask = SendPhotos(chatId, client, photos);
+
+            await Task.WhenAll(waitForPhotosMsgTask, photosMsgTask);
+
+            var textMsg = await client.SendTextMessageAsync(chatId, text);
+
+            user.History.AppendMsg(false, photosMsgTask.Result);
+            user.History.AppendMsg(false, textMsg);
+            user.History.AppendMsg(false, waitForPhotosMsgTask.Result);
+        }
+
+        public static async Task<string> ReadAllLinesAsync(string path)
+        {
+            string result;
+            using (var reader = new StreamReader(path))
+            {
+                result = await reader.ReadToEndAsync();
+            }
+            return result;
+        }
+
+        public static Task<Message[]> SendPhotos(long chatId, TelegramBotClient client, IEnumerable<FileInfo> neededFiles)
+        {
+            var count = neededFiles.Count();
+            var photos = new List<InputMediaPhoto>(count); // what if more than 10 photos? TODO!
+            var streams = new List<MemoryStream>(count);
+
+            foreach (var i in neededFiles)
+            {
+                using (var bitmap = new Bitmap(i.FullName)) // critical change here
+                {
+                    var stream = new MemoryStream();
+                    bitmap.Save(stream, ImageFormat.Jpeg);
+                    stream.Position = 0;
+
+                    var nameWithoutExt = i.NameWithoutExt();
+                    var photo = new InputMediaPhoto(new InputMedia(stream, nameWithoutExt));
+
+                    photos.Add(photo);
+                    streams.Add(stream);
+                }
+            }
+
+            return client.SendMediaGroupAsync(chatId, photos);
+        }
+
+        public static FileInfo[] GetInfoAsync(string board)
+        {
+            var dir = BoardsDirectory.GetDirectories().First(i => i.Name == board);
+            var files = dir.GetFiles();
+            return files;
+        }
+
         public static async Task ClearHistory(BotUser entry, TelegramBotClient client)
         {
             var chatId = entry.Id;
@@ -47,6 +114,18 @@ namespace TelegramBot_SampleFunctionalities
             var chatId = entry.Id;
 
             await ClearHistory(entry, client);
+
+            var msg1 = await client.SendTextMessageAsync(chatId, "Choose longboard!", replyMarkup: AllLBkboard);
+
+            entry.History.Add(new ChatMessage(msg1.MessageId, false));
+            entry.Longboards.Clear();
+
+            entry.Stage = Stage.ProcessingLongboardsKeyboardInput;
+        }
+
+        public static async Task StartNewDialog(BotUser entry, TelegramBotClient client)
+        {
+            var chatId = entry.Id;
 
             var msg1 = await client.SendTextMessageAsync(chatId, "Choose longboard!", replyMarkup: AllLBkboard);
 

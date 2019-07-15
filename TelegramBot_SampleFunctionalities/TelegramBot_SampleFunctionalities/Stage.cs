@@ -7,6 +7,7 @@
         GettingPhone = 2,
         ProcessingLongboardsKeyboardInput = 3,
         ProcessingBasketKeyboardInput = 4,
-        AskingIfShouldContinueAddingToBasket = 5
+        AskingIfShouldContinueAddingToBasket = 5,
+        ShouldRestartDialog = 6
     }
 }

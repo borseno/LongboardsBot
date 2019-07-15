@@ -16,9 +16,15 @@ namespace TelegramBot_SampleFunctionalities
         public const string YesText = "Да";
         public const string NoText = "Нет";
         public const string FinishText = "Закончить";
+        public const string TextFileName = "Text.txt";
+        public const string ImageExtension = ".jpg";
+        public const string FinalMessagePath = @"Texts\FinalMessage.txt";
+        public const string RestartText = "Начать покупки заново";
 
         public static readonly ReplyKeyboardMarkup AllLBkboard; // keyboard for all longboards
         public static readonly FileInfo[] AllLBImages;
+        public static readonly DirectoryInfo BoardsDirectory;
+        public static readonly ReplyKeyboardMarkup RestartKBoard;
 
         static Constants()
         {
@@ -35,6 +41,8 @@ namespace TelegramBot_SampleFunctionalities
 
             AllLBkboard = myReplyMarkup;
             AllLBImages = files;
+            BoardsDirectory = directory;
+            RestartKBoard = new ReplyKeyboardMarkup(new KeyboardButton(RestartText));
         }
     }
 }

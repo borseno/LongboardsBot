@@ -9,6 +9,7 @@ using static TelegramBot_SampleFunctionalities.Functions;
 using static TelegramBot_SampleFunctionalities.Constants;
 using System.Threading;
 using static System.String;
+using System.Text.RegularExpressions;
 
 namespace TelegramBot_SampleFunctionalities
 {
@@ -62,11 +63,23 @@ namespace TelegramBot_SampleFunctionalities
 
                 case Stage.GettingPhone:
                     {
-                        var msg = await UpdateUsersPhoneAndUsername(client, update.Message, storage);
-                        entry.History.Add(new ChatMessage(msg.MessageId, false));
+                        if (!Regex.IsMatch(update.Message.Text, @"^\+?3?8?(0[5-9][0-9]\d{7})$"))
+                        {
+                            await client.SendTextMessageAsync(chatId, @"Вы ввели некорректный номер. Ввведите номер, начинающийся на +380...");
+                            return;
+                        }
 
-                        await SendLongBoards(client, update.Message.Chat.Id, entry.History);
                         entry.Stage = Stage.ProcessingLongboardsKeyboardInput;
+
+                        var msgUpdate = await UpdateUsersPhoneAndUsername(client, update.Message, storage);
+
+                        var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, "Идет отправка фотографий...");
+                        var photosTask = SendLongBoards(client, update.Message.Chat.Id, entry.History);
+
+                        await Task.WhenAll(waitForPhotosMsgTask, photosTask);
+
+                        entry.History.Add(new ChatMessage(msgUpdate.MessageId, false));
+                        entry.History.Add(new ChatMessage(waitForPhotosMsgTask.Result.MessageId, false));
 
                         break;
                     }
@@ -80,13 +93,14 @@ namespace TelegramBot_SampleFunctionalities
                         if (isLongBoard)
                         {
                             entry.Pending = lb;
+                            entry.Stage = Stage.ProcessingBasketKeyboardInput; // set before messages are sent so that there won't be multiple msg sent
 
                             // TODO: add here sending more info about lb
-                            var msg = await SendShouldAddToBasketKeyboard(client, chatId, lb);
 
-                            entry.History.Add(new ChatMessage(msg.MessageId, false));
+                            await SendInfoAbout(entry.Pending, entry, client);
+                            var msgShouldAddToKBoard = await SendShouldAddToBasketKeyboard(client, chatId, lb);
 
-                            entry.Stage = Stage.ProcessingBasketKeyboardInput;
+                            entry.History.AppendMsg(false, msgShouldAddToKBoard);
                         }
 
                         break;
@@ -110,13 +124,12 @@ namespace TelegramBot_SampleFunctionalities
                             }
 
                             entry.Pending = null;
+                            entry.Stage = Stage.AskingIfShouldContinueAddingToBasket; // 
 
                             var msg1 = await SendInfoAboutBasket(client, entry);
                             var msg2 = await SendShouldContinueAddingToBasket(client, entry);
 
                             entry.History.AddRange(new[] { msg1, msg2 }.Select(i => new ChatMessage(i.MessageId, false)));
-
-                            entry.Stage = Stage.AskingIfShouldContinueAddingToBasket;
                         }
 
                         break;
@@ -152,6 +165,7 @@ namespace TelegramBot_SampleFunctionalities
                                 break;
                             case FinishText:
                                 {
+                                    var readFinalMsgTask = ReadAllLinesAsync(FinalMessagePath);
                                     var lbrds = Join(", ", entry.Longboards);
                                     var phone = entry.Phone;
                                     var username = entry.UserName;
@@ -161,22 +175,39 @@ namespace TelegramBot_SampleFunctionalities
                                     var msgToAdminGroup =
                                         $"@{username} хочет купить {{{lbrds}}}{Environment.NewLine}" +
                                         $"Имя: {name}, Телефон: {phone}";
-
                                     var msgToUser = // TODO
-                                        $"Вы купили {lbrds}. Стоимость = 100 долларов. " +
-                                        $"Деньги отдать наличкой в бро кофе. " +
-                                        $"Метро защитников украины, г. Харьков. Дима встретит";
+                                        $"Вы купили {lbrds}. Стоимость = 5000 долларов. "; // price in 
 
                                     var msgUserTask = client.SendTextMessageAsync(userChatId, msgToUser);
                                     var msgAdminTask = client.SendTextMessageAsync(AdminGroupChatId, msgToAdminGroup);
 
-                                    await Task.WhenAll(msgUserTask, msgAdminTask);
+                                    await Task.Delay(50);
 
-                                    entry.History.Add(new ChatMessage(msgUserTask.Result.MessageId, true));
+                                    var msgUserTask2 = client
+                                        .SendTextMessageAsync(userChatId, await readFinalMsgTask);
 
-                                    await RestartDialog(entry, client);
+                                    await Task.WhenAll(msgUserTask, msgAdminTask, msgUserTask2);
+
+                                    entry.History.AppendMsg(true, msgUserTask.Result);
+                                    entry.History.AppendMsg(true, msgUserTask2.Result);
+
+                                    await ClearHistory(entry, client);     
+                                    entry.Stage = Stage.ShouldRestartDialog;
+                                    await client.SendTextMessageAsync(chatId, "Начать покупки заново?", replyMarkup: RestartKBoard);
+
                                     break;
                                 }
+                        }
+
+                        break;
+
+                    }
+                case Stage.ShouldRestartDialog:
+                    {
+                        var text = update.Message.Text;
+                        if (text == RestartText)
+                        {
+                            await StartNewDialog(entry, client);
                         }
 
                         break;

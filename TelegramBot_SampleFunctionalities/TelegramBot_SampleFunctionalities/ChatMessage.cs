@@ -4,7 +4,7 @@ using System.Text;
 
 namespace TelegramBot_SampleFunctionalities
 {
-    struct ChatMessage
+    public struct ChatMessage
     {
         public int MsgId { get; }
         public bool IgnoreDelete { get; }
