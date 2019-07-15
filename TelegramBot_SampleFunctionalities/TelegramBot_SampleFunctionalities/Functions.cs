@@ -14,7 +14,9 @@ namespace TelegramBot_SampleFunctionalities
 {
     internal static class Functions
     {
-        public static Task<Message> AskName(TelegramBotClient client, long chatId) => client.SendTextMessageAsync(chatId, "Здравствуйте! Введите ваше имя");
+        public static Task<Message> AskName(TelegramBotClient client, long chatId)
+            => client.SendTextMessageAsync(chatId, "Здравствуйте! Введите ваше имя");
+
         public static Task<Message> AskPhone(TelegramBotClient client, long chatId, bool hasUserName)
             => client.SendTextMessageAsync(
                 chatId,
@@ -27,7 +29,7 @@ namespace TelegramBot_SampleFunctionalities
             var list = entry.History;
             var deleteTasks = new List<Task>(list.Count);
 
-            for (int i = list.Count - 1; i > 0; i--)
+            for (int i = list.Count - 1; i >= 0; i--)
             {
                 var elem = list[i];
                 if (!elem.IgnoreDelete)
@@ -72,61 +74,68 @@ namespace TelegramBot_SampleFunctionalities
             if (filesToIgnore == null)
                 filesToIgnore = Enumerable.Empty<string>();
 
-            var directory = new DirectoryInfo(Path.Combine(Directory.GetCurrentDirectory(), LBDirectory));
-            var files = directory.GetFiles().Where(i => !filesToIgnore.Contains(i.NameWithoutExt())).ToArray();
-            var images = new List<KeyValuePair<InputMediaPhoto, MemoryStream>>(files.Length);
-            var buttons = new KeyboardButton[files.Length];
+            var allFiles = AllLBImages;
+            var neededfiles = allFiles.Where(i => !filesToIgnore.Contains(i.NameWithoutExt())).ToArray();
+            var success = neededfiles.Length >= 1;
 
-            for (var i = 0; i < files.Length; i++)
+            if (!success)
             {
-                var nameWithoutExt = files[i].NameWithoutExt();
-                var bitmap = new Bitmap(files[i].FullName);
-                var stream = new MemoryStream();
-                bitmap.Save(stream, ImageFormat.Jpeg);
-                stream.Position = 0;
-
-                var photo = new InputMediaPhoto(new InputMedia(stream, nameWithoutExt));
-
-                images.Add(new KeyValuePair<InputMediaPhoto, MemoryStream>(photo, stream));
-                buttons[i] = new KeyboardButton(nameWithoutExt);
+                var msg1 = await client.SendTextMessageAsync(chatId, "Больше лонгбордов нет! 😌");
+                msgStorage.Add(new ChatMessage(msg1.MessageId, false));
+                return success;
             }
 
-            var photos = images.Select(i => i.Key).ToArray(); // what if more than 10 photos? TODO!
+            var photos = new List<InputMediaPhoto>(neededfiles.Length); // what if more than 10 photos? TODO!
+            var streams = new List<MemoryStream>(neededfiles.Length);
+            var buttons = new List<KeyboardButton>(neededfiles.Length);
 
-            if (photos.Length >= 1)
+            // init photos, streams (for photos), buttons
+            foreach (var i in neededfiles)
             {
-                var msgs = await client.SendMediaGroupAsync(chatId, photos);
+                using (var bitmap = new Bitmap(i.FullName)) // critical change here
+                {
+                    var stream = new MemoryStream();
+                    bitmap.Save(stream, ImageFormat.Jpeg);
+                    stream.Position = 0;
 
-                if (files.Length == directory.GetFiles().Length)
-                {
-                    msgStorage.AddRange(msgs.Select(i => new ChatMessage(i.MessageId, true)));
-                }
-                else
-                {
-                    msgStorage.AddRange(msgs.Select(i => new ChatMessage(i.MessageId, false)));
+                    var nameWithoutExt = i.NameWithoutExt();
+                    var photo = new InputMediaPhoto(new InputMedia(stream, nameWithoutExt));
+
+                    photos.Add(photo);
+                    streams.Add(stream);
+                    buttons.Add(new KeyboardButton(nameWithoutExt));
                 }
             }
-            else
-            {
-                var msg = await client.SendTextMessageAsync(chatId, "Больше лонгбордов нет! 😌");
 
-                msgStorage.Add(new ChatMessage(msg.MessageId, false));
-            }
-
-            foreach (var i in images)
-            {
-                i.Value.Dispose();
-            }
-
+            // after buttons and photos are inited, we can init keyboard (cuz buttons are inited)
             var myReplyMarkup = new ReplyKeyboardMarkup(buttons, true);
 
-            if (photos.Length >= 1)
+            // send photos
+            var msgs = await client.SendMediaGroupAsync(chatId, photos);
+
+            // send msg + keyboard
+            var msg = await client.SendTextMessageAsync(chatId, "Choose longboard!", replyMarkup: myReplyMarkup);
+
+
+            // now process the result. Add messages to history. Dispose the streams.
+  
+            msgStorage.Add(new ChatMessage(msg.MessageId, false));
+
+            // now that photos are sent we don't need to keep them in memory anymore
+            Parallel.ForEach(streams, i => i.Dispose()); 
+
+            // if a message contains all longboards
+            if (neededfiles.Length == AllLBImages.Length)
             {
-                var msg = await client.SendTextMessageAsync(chatId, "Choose longboard!", replyMarkup: myReplyMarkup);
-                msgStorage.Add(new ChatMessage(msg.MessageId, false));
+                // then don't delete it and use in the future ----------------------\/
+                msgStorage.AddRange(msgs.Select(i => new ChatMessage(i.MessageId, true)));
+            }
+            else // otherwise, don't
+            {
+                msgStorage.AddRange(msgs.Select(i => new ChatMessage(i.MessageId, false)));
             }
 
-            return photos.Length >= 1;
+            return success;
         }
 
         public static bool ValidateLongBoard(string text)
@@ -143,8 +152,7 @@ namespace TelegramBot_SampleFunctionalities
 
         public static Task<Message> SendShouldAddToBasketKeyboard(TelegramBotClient client, long chatId, string chosen)
         {
-            //var text = "У вас сейчас в корзине: " + String.Join(", ", basket);
-            var text = $"Вы хотите добавить {chosen} лонг борд в корзину";
+            var text = $"Вы хотите добавить {chosen} лонг борд в корзину?";
             var btnCancel = new KeyboardButton(CancelText);
             var btnAdd = new KeyboardButton(AddText);
 

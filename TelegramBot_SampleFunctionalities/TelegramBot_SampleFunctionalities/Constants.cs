@@ -18,6 +18,7 @@ namespace TelegramBot_SampleFunctionalities
         public const string FinishText = "Закончить";
 
         public static readonly ReplyKeyboardMarkup AllLBkboard; // keyboard for all longboards
+        public static readonly FileInfo[] AllLBImages;
 
         static Constants()
         {
@@ -33,6 +34,7 @@ namespace TelegramBot_SampleFunctionalities
             var myReplyMarkup = new ReplyKeyboardMarkup(buttons, true);
 
             AllLBkboard = myReplyMarkup;
+            AllLBImages = files;
         }
     }
 }
