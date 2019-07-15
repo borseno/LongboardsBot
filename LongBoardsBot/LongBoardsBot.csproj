@@ -13,11 +13,34 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="LongboardsPhotos\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="LongboardsPhotos\1.png">
+    <None Update="Models\LongBoardsPhotos\Carving.jpg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Models\LongBoardsPhotos\Carving\Text.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Models\LongBoardsPhotos\Cruiser.jpg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Models\LongBoardsPhotos\Cruiser\1.jpg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Models\LongBoardsPhotos\Cruiser\2.jpg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Models\LongBoardsPhotos\Cruiser\3.jpg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Models\LongBoardsPhotos\Cruiser\Text.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Models\LongBoardsPhotos\Downhill.jpg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Models\LongBoardsPhotos\Downhill\Text.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Models\Texts\FinalMessage.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

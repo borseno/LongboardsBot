@@ -1,12 +1,10 @@
 ﻿using LongBoardsBot.Controllers;
 using LongBoardsBot.Helpers;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Telegram.Bot;
-using static LongBoardsBot.AppSettings;
+using static LongBoardsBot.Models.Constants;
 
 namespace LongBoardsBot.Models
 {

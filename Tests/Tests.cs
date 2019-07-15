@@ -1,7 +1,5 @@
 using LongBoardsBot.Controllers;
 using LongBoardsBot.Helpers;
-using Microsoft.AspNetCore.Mvc;
-using System;
 using Xunit;
 
 namespace Tests
