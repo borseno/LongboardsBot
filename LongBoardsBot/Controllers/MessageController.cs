@@ -49,7 +49,8 @@ namespace LongBoardsBot.Controllers
                 await bot.SendTextMessageAsync(BugReportChatId, 
                     e.Message + nl + nl + e.InnerException.Message + nl + nl
                     + e.StackTrace);
-                throw;
+
+                return Ok();
             }
         }
     }

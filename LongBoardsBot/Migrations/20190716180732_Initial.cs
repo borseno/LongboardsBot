@@ -28,7 +28,7 @@ namespace LongBoardsBot.Migrations
                 {
                     ChatId = table.Column<long>(nullable: false),
                     Name = table.Column<string>(nullable: false),
-                    Phone = table.Column<string>(nullable: false),
+                    Phone = table.Column<string>(nullable: true),
                     UserName = table.Column<string>(nullable: true),
                     Stage = table.Column<int>(nullable: false, defaultValue: 0),
                     PendingId = table.Column<int>(nullable: true)

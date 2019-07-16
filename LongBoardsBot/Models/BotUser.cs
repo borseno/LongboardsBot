@@ -11,7 +11,6 @@ namespace LongBoardsBot.Models
         [Required]
         public string Name { get; set; }
 
-        [Required]
         public string Phone { get; set; }
 
         public string UserName { get; set; }
