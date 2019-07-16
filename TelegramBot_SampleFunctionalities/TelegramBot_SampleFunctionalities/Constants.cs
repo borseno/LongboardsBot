@@ -9,7 +9,7 @@ namespace TelegramBot_SampleFunctionalities
     static class Constants
     {
         public const string LBDirectory = @"LongBoardsPhotos";
-        public const string ApiToken = @"821836757:AAHFbFgSrbrvpGVpzCYWZAwG2Jzo7Cbl1m8";
+        public const string ApiToken = @"834221048:AAEZ6xzH3DYzz-VOAea_2Fc0-y6GByFLEhE";
         public const long AdminGroupChatId = -1001181244049;
         public const string CancelText = "Отменить";
         public const string AddText = "Добавить";
@@ -37,12 +37,12 @@ namespace TelegramBot_SampleFunctionalities
                 buttons[i] = new KeyboardButton(files[i].NameWithoutExt());
             }
 
-            var myReplyMarkup = new ReplyKeyboardMarkup(buttons, true);
+            var myReplyMarkup = new ReplyKeyboardMarkup(buttons, true, true);
 
             AllLBkboard = myReplyMarkup;
             AllLBImages = files;
             BoardsDirectory = directory;
-            RestartKBoard = new ReplyKeyboardMarkup(new KeyboardButton(RestartText));
+            RestartKBoard = new ReplyKeyboardMarkup(new[] { new KeyboardButton(RestartText) }, oneTimeKeyboard: true);
         }
     }
 }

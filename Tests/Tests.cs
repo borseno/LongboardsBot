@@ -14,7 +14,7 @@ namespace Tests
         public void AddControllerName_ShouldAddMessageToGivenString
             (string initValue, string expected)
         {
-            string result = initValue.AddControllerName(new MessageController());
+            string result = initValue.AddControllerName(new MessageController(null));
 
             Assert.Equal(expected, result);
         }

@@ -1,14 +1,24 @@
-﻿namespace LongBoardsBot.Models
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace LongBoardsBot.Models
 {
     public class ChatMessage
     {
-        public int MsgId { get; }
-        public bool IgnoreDelete { get; }
-
         public ChatMessage(int msgId, bool ignoreDelete)
         {
-            MsgId = msgId;
+            MessageId = msgId;
             IgnoreDelete = ignoreDelete;
         }
+
+        public ChatMessage()
+        {
+
+        }
+
+        public int MessageId { get; set; }
+        public bool IgnoreDelete { get; set; }
+
+        [Required]
+        public BotUser User { get; set; }
     }
 }

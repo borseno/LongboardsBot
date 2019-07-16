@@ -1,9 +1,10 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
+using LongBoardsBot.Models;
 using Microsoft.AspNetCore.Mvc;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using static LongBoardsBot.Models.Constants;
-using static LongBoardsBot.Models.StageHandling;
 
 namespace LongBoardsBot.Controllers
 {
@@ -11,7 +12,14 @@ namespace LongBoardsBot.Controllers
     [ApiController]
     public class MessageController : ControllerBase
     {
-        private TelegramBotClient Bot { get; } = Models.Bot.Get();
+        private readonly StageHandler handler;
+        private readonly TelegramBotClient bot;
+
+        public MessageController(StageHandler handler)
+        {
+            this.handler = handler;
+            bot = Bot.Get();
+        }
 
         [HttpGet]
         public ActionResult Get()
@@ -22,15 +30,27 @@ namespace LongBoardsBot.Controllers
         [HttpPost]
         public async Task<ActionResult> Update([FromBody]Update update)
         {
-            if (update?.Message?.Chat == null)
+            try
+            {
+                if (update?.Message?.Chat == null)
+                    return Ok();
+
+                if (update.Message.Chat.Id == AdminGroupChatId)
+                    return Ok();
+
+                await handler.HandleUpdate(bot, update);
+
                 return Ok();
+            }
+            catch (Exception e)
+            {
+                var nl = Environment.NewLine;
 
-            if (update.Message.Chat.Id == AdminGroupChatId)
-                return Ok();
-
-            await HandleUpdate(Bot, update);
-
-            return Ok();
+                await bot.SendTextMessageAsync(BugReportChatId, 
+                    e.Message + nl + nl + e.InnerException.Message + nl + nl
+                    + e.StackTrace);
+                throw;
+            }
         }
     }
 }

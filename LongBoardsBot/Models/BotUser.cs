@@ -1,23 +1,39 @@
 ﻿using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
 
 namespace LongBoardsBot.Models
 {
-    internal class BotUser
+    public class BotUser
     {
-        public long Id { get; set; }
+        public long ChatId { get; set; }
 
+        [Required]
         public string Name { get; set; }
 
+        [Required]
         public string Phone { get; set; }
 
         public string UserName { get; set; }
 
+        [Required]
         public Stage Stage { get; set; }
 
-        public List<string> Longboards { get; set; } = new List<string>(8);
+        public IList<BotUserLongBoard> BotUserLongBoards { get; set; }
 
-        public string Pending { get; set; }
+        public LongBoard Pending { get; set; }
 
-        public List<ChatMessage> History { get; set; } = new List<ChatMessage>(16);
+        public IList<ChatMessage> History { get; set; }
+
+        public List<LongBoard> GetBasket()
+            => BotUserLongBoards.Select(i => i.Longboard).ToList();
+    }
+
+    public class BotUserLongBoard
+    {
+        public long BotUserId { get; set; }
+        public int LongboardId { get; set; }
+        public LongBoard Longboard { get; set; }
+        public BotUser BotUser { get; set; }
     }
 }

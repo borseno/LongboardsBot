@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using LongBoardsBot.Helpers;
+using System.IO;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace LongBoardsBot.Models
@@ -11,6 +12,7 @@ namespace LongBoardsBot.Models
 
         public const string LBDirectory = @"Models\LongBoardsPhotos";
         public const long AdminGroupChatId = -1001181244049;
+        public const long BugReportChatId = 777785046;
         public const string CancelText = "Отменить";
         public const string AddText = "Добавить";
         public const string YesText = "Да";

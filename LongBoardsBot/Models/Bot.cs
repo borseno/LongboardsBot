@@ -20,7 +20,7 @@ namespace LongBoardsBot.Models
             {
                 client = new TelegramBotClient(ApiKey);
 
-                var url = Url.AddControllerName(new MessageController());
+                var url = Url.AddControllerName(new MessageController(null));
 
                 client.SetWebhookAsync(url).GetAwaiter().GetResult();
             }
@@ -47,7 +47,7 @@ namespace LongBoardsBot.Models
             {
                 client = new TelegramBotClient(ApiKey);
 
-                var url = Url.AddControllerName(new MessageController());
+                var url = Url.AddControllerName(new MessageController(null));
 
                 return client.SetWebhookAsync(url);
             }

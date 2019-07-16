@@ -142,7 +142,7 @@ namespace TelegramBot_SampleFunctionalities
             var btnCancel = new KeyboardButton(CancelText);
             var btnFinish = new KeyboardButton(FinishText);
 
-            var keyboard = new ReplyKeyboardMarkup(new[] { btnYes, btnCancel, btnFinish }, true);
+            var keyboard = new ReplyKeyboardMarkup(new[] { btnYes, btnCancel, btnFinish }, true, true);
 
             return client.SendTextMessageAsync(entry.Id, text, replyMarkup: keyboard);
         }
@@ -187,7 +187,7 @@ namespace TelegramBot_SampleFunctionalities
             }
 
             // after buttons and photos are inited, we can init keyboard (cuz buttons are inited)
-            var myReplyMarkup = new ReplyKeyboardMarkup(buttons, true);
+            var myReplyMarkup = new ReplyKeyboardMarkup(buttons, true, true);
 
             // send photos
             var msgs = await client.SendMediaGroupAsync(chatId, photos);
@@ -221,7 +221,7 @@ namespace TelegramBot_SampleFunctionalities
         {
             var directory = new DirectoryInfo(Path.Combine(Directory.GetCurrentDirectory(), LBDirectory));
             var files = directory.GetFiles();
-            var exists = files.Any(i => i.Name.Contains(text));
+            var exists = files.Any(i => i.NameWithoutExt() == text);
 
             return exists;
         }
@@ -235,7 +235,7 @@ namespace TelegramBot_SampleFunctionalities
             var btnCancel = new KeyboardButton(CancelText);
             var btnAdd = new KeyboardButton(AddText);
 
-            var keyboard = new ReplyKeyboardMarkup(new[] { btnCancel, btnAdd }, true);
+            var keyboard = new ReplyKeyboardMarkup(new[] { btnCancel, btnAdd }, true, true);
 
             return client.SendTextMessageAsync(chatId, text, replyMarkup: keyboard);
         }

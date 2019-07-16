@@ -8,30 +8,55 @@ using static LongBoardsBot.Models.Functions;
 using static LongBoardsBot.Models.Constants;
 using static System.String;
 using System.Text.RegularExpressions;
+using LongBoardsBot.Helpers;
+using static LongBoardsBot.Helpers.FileExtensions;
+using Microsoft.EntityFrameworkCore;
 
 namespace LongBoardsBot.Models
 {
-    public static class StageHandling
+    public class StageHandler
     {
-        private static readonly List<BotUser> storage = new List<BotUser>(16);
+        private readonly LongboardistDBContext ctx;
 
-        public static async Task HandleUpdate(TelegramBotClient client, Update update)
+        public StageHandler(LongboardistDBContext ctx)
+        {
+            this.ctx = ctx;
+        }
+
+        public async Task HandleUpdate(TelegramBotClient client, Update update)
         {
             if (update.Message == null)
                 return;
 
+            var storage = ctx.BotUsers;
+
+            var included = ctx
+                .BotUsers
+                .Include(i => i.BotUserLongBoards)
+                    .ThenInclude(j => j.Longboard)
+                .Include(i => i.BotUserLongBoards)
+                    .ThenInclude(j => j.BotUser)
+                .Include(i => i.Pending)
+                .Include(i => i.History)
+                    .ThenInclude(j => j.User);
+
             var chatId = update.Message.Chat.Id;
-            var entry = storage.FirstOrDefault(i => i.Id == chatId);
+            var entry = included.FirstOrDefault(i => i.ChatId == chatId);
 
             if (entry == null)
             {
                 entry = new BotUser
                 {
-                    Id = chatId,
-                    Stage = 0
+                    ChatId = chatId,
+                    Name = "0",
+                    Phone = "0",
+                    UserName = update.Message.Chat.Username,
+                    Stage = 0,
+                    History = new List<ChatMessage>(4)
                 };
 
                 storage.Add(entry);
+                await ctx.SaveChangesAsync();
             }
 
             entry.History.Add(new ChatMessage(update.Message.MessageId, false));
@@ -40,7 +65,7 @@ namespace LongBoardsBot.Models
             {
                 case Stage.AskingName:
                     {
-                        var msg = await AskName(client, chatId);
+                        var msg = await client.AskName(chatId);
 
                         entry.History.Add(new ChatMessage(msg.MessageId, false));
 
@@ -51,7 +76,7 @@ namespace LongBoardsBot.Models
                 case Stage.GettingName:
                     {
                         var msg2 = await UpdateUsersNameAndUsername(client, update.Message, storage);
-                        var msg1 = await AskPhone(client, update.Message.Chat.Id, !IsNullOrWhiteSpace(update.Message.Chat.Username));
+                        var msg1 = await client.AskPhone(update.Message.Chat.Id, !IsNullOrWhiteSpace(update.Message.Chat.Username));
 
                         entry.History.AddRange(new[] { msg1, msg2 }.Select(i => new ChatMessage(i.MessageId, false))); // simplify
 
@@ -84,22 +109,23 @@ namespace LongBoardsBot.Models
 
                 case Stage.ProcessingLongboardsKeyboardInput:
                     {
-                        var lb = update.Message.Text;
+                        var lbText = update.Message.Text;
 
-                        var isLongBoard = ValidateLongBoard(lb);
+                        var isLongBoard = ExistsLongBoard(lbText);
 
-                        if (isLongBoard)
-                        {
-                            entry.Pending = lb;
-                            entry.Stage = Stage.ProcessingBasketKeyboardInput; // set before messages are sent so that there won't be multiple msg sent
+                        if (!isLongBoard)
+                            return;
 
-                            // TODO: add here sending more info about lb
+                        var lb = await ctx.Longboards.FirstAsync(i => i.Style == lbText);
 
-                            await SendInfoAbout(entry.Pending, entry, client);
-                            var msgShouldAddToKBoard = await SendShouldAddToBasketKeyboard(client, chatId, lb);
+                        entry.Pending = lb;
+                        entry.Stage = Stage.ProcessingBasketKeyboardInput; // set before messages are sent so that there won't be multiple msg sent
 
-                            entry.History.AppendMsg(false, msgShouldAddToKBoard);
-                        }
+                        // TODO: add here sending more info about lb
+                        await SendInfoAbout(entry.Pending, entry, client);
+                        var msgShouldAddToKBoard = await SendShouldAddToBasketKeyboard(client, chatId, lbText);
+
+                        entry.History.Add(new ChatMessage(msgShouldAddToKBoard.MessageId, false));
 
                         break;
                     }
@@ -110,25 +136,31 @@ namespace LongBoardsBot.Models
 
                         var result = update.Message.Text;
 
-                        if (ValidateResult(result))
+                        if (!ValidateResult(result))
+                            return;
+
+                        if (result == AddText)
                         {
-                            if (result == AddText)
+                            entry.BotUserLongBoards.Add(new BotUserLongBoard()
                             {
-                                entry.Longboards.Add(entry.Pending);
+                                BotUser = entry,
+                                Longboard = entry.Pending,
+                                BotUserId = entry.ChatId,
+                                LongboardId = entry.Pending.Id
+                            });
 
-                                var msg = await client.SendTextMessageAsync(chatId, $"Вы успешно добавили {entry.Pending} лонгборд в корзину!");
+                            var msg = await client.SendTextMessageAsync(chatId, $"Вы успешно добавили {entry.Pending} лонгборд в корзину!");
 
-                                entry.History.Add(new ChatMessage(msg.MessageId, false));
-                            }
-
-                            entry.Pending = null;
-                            entry.Stage = Stage.AskingIfShouldContinueAddingToBasket; // 
-
-                            var msg1 = await SendInfoAboutBasket(client, entry);
-                            var msg2 = await SendShouldContinueAddingToBasket(client, entry);
-
-                            entry.History.AddRange(new[] { msg1, msg2 }.Select(i => new ChatMessage(i.MessageId, false)));
+                            entry.History.Add(new ChatMessage(msg.MessageId, false));
                         }
+
+                        entry.Pending = null;
+                        entry.Stage = Stage.AskingIfShouldContinueAddingToBasket;
+
+                        var msg1 = await SendInfoAboutBasket(client, entry);
+                        var msg2 = await SendShouldContinueAddingToBasket(client, entry);
+
+                        entry.History.AddRange(new[] { msg1, msg2 }.Select(i => new ChatMessage(i.MessageId, false)));
 
                         break;
                     }
@@ -141,7 +173,7 @@ namespace LongBoardsBot.Models
                         {
                             case YesText:
                                 {
-                                    var successful = await SendLongBoards(client, entry.Id, entry.History, entry.Longboards);
+                                    var successful = await SendLongBoards(client, entry.ChatId, entry.History, entry.BotUserLongBoards.Select(i => i.Longboard));
 
                                     if (successful)
                                         entry.Stage = Stage.ProcessingLongboardsKeyboardInput;
@@ -164,11 +196,11 @@ namespace LongBoardsBot.Models
                             case FinishText:
                                 {
                                     var readFinalMsgTask = ReadAllLinesAsync(FinalMessagePath);
-                                    var lbrds = Join(", ", entry.Longboards);
+                                    var lbrds = Join(", ", entry.BotUserLongBoards.Select(i => i.Longboard).Select(i => i.Style));
                                     var phone = entry.Phone;
                                     var username = entry.UserName;
                                     var name = entry.Name;
-                                    var userChatId = entry.Id;
+                                    var userChatId = entry.ChatId;
 
                                     var msgToAdminGroup =
                                         $"@{username} хочет купить {{{lbrds}}}{Environment.NewLine}" +
@@ -186,15 +218,18 @@ namespace LongBoardsBot.Models
 
                                     await Task.WhenAll(msgUserTask, msgAdminTask, msgUserTask2);
 
-                                    entry.History.AppendMsg(true, msgUserTask.Result);
-                                    entry.History.AppendMsg(true, msgUserTask2.Result);
+                                    entry.History.Add(new ChatMessage(msgUserTask.Result.MessageId, true));
+                                    entry.History.Add(new ChatMessage(msgUserTask2.Result.MessageId, true));
 
                                     await ClearHistory(entry, client);
+
                                     entry.Stage = Stage.ShouldRestartDialog;
                                     await client.SendTextMessageAsync(chatId, "Начать покупки заново?", replyMarkup: RestartKBoard);
 
                                     break;
                                 }
+                            default:
+                                return;
                         }
 
                         break;
@@ -203,14 +238,20 @@ namespace LongBoardsBot.Models
                 case Stage.ShouldRestartDialog:
                     {
                         var text = update.Message.Text;
-                        if (text == RestartText)
+                        if (text != RestartText)
                         {
-                            await StartNewDialog(entry, client);
+                            return;
                         }
+
+                        await StartNewDialog(entry, client);
 
                         break;
                     }
             }
+
+            ctx.Entry(entry).State = EntityState.Modified;
+
+            await ctx.SaveChangesAsync();
         }
     }
 }
