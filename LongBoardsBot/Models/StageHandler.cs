@@ -76,7 +76,6 @@ namespace LongBoardsBot.Models
 
                         break;
                     }
-
                 case Stage.GettingName:
                     {
                         var msg2 = await UpdateUsersNameAndUsername(client, update.Message, storage);
@@ -90,7 +89,6 @@ namespace LongBoardsBot.Models
 
                         break;
                     }
-
                 case Stage.GettingPhone:
                     {
                         if (!Regex.IsMatch(update.Message.Text, @"^\+?3?8?(0[5-9][0-9]\d{7})$"))
@@ -106,7 +104,7 @@ namespace LongBoardsBot.Models
                             return;
                         }
 
-                        instance.Stage = Stage.ProcessingLongboardsKeyboardInput;
+                        instance.Stage = Stage.WhatLongBoard;
 
                         var msgUpdate = await UpdateUsersPhoneAndUsername(client, update.Message, storage);
 
@@ -123,8 +121,7 @@ namespace LongBoardsBot.Models
 
                         break;
                     }
-
-                case Stage.ProcessingLongboardsKeyboardInput:
+                case Stage.WhatLongBoard:
                     {
                         var lbText = update.Message.Text;
 
@@ -134,15 +131,13 @@ namespace LongBoardsBot.Models
                         {
                             ctx.Entry(instance).State = EntityState.Modified;
                             await ctx.SaveChangesAsync();
-
-                            await client.SendTextMessageAsync(chatId, lbText);
                             return;
                         }
 
                         var lb = await ctx.Longboards.FirstAsync(i => i.Style == lbText);
 
                         instance.Pending = lb;
-                        instance.Stage = Stage.ProcessingBasketKeyboardInput; // set before messages are sent so that there won't be multiple msg sent
+                        instance.Stage = Stage.ShouldAddLongboardToBasket; // set before messages are sent so that there won't be multiple msg sent
 
                         // TODO: add here sending more info about lb
                         await SendInfoAbout(instance.Pending, instance, client);
@@ -155,8 +150,7 @@ namespace LongBoardsBot.Models
 
                         break;
                     }
-
-                case Stage.ProcessingBasketKeyboardInput:
+                case Stage.ShouldAddLongboardToBasket:
                     {
                         bool ValidateResult(string value) => value == CancelText || value == AddText;
 
@@ -179,21 +173,61 @@ namespace LongBoardsBot.Models
 
                         if (result == AddText)
                         {
-                            instance.BotUserLongBoards.Add(new BotUserLongBoard()
-                            {
-                                BotUser = instance,
-                                Longboard = instance.Pending,
-                                BotUserId = instance.ChatId,
-                                LongboardId = instance.Pending.Id
-                            });
+                            instance.Stage = Stage.HowManyLongboards;
 
-                            var msg = await client.SendTextMessageAsync(chatId, $"Вы успешно добавили {instance.Pending.Style} стиль катания в корзину!");
+                            var msg = await client.SendTextMessageAsync(chatId, 
+                                $"Вы собираетесь добавить лонгборды {instance.Pending.Style} " +
+                                $"стиля катания в корзину. Укажите количество");
 
                             instance.History.Add(new ChatMessage(msg.MessageId, false));
                         }
+                        else if (result == CancelText)
+                        {
+                            instance.Pending = null;
+                            instance.Stage = Stage.ShouldContinueAddingToBasket;
 
+                            var msg1 = await SendInfoAboutBasket(client, instance);
+                            var msg2 = await SendShouldContinueAddingToBasket(client, instance);
+
+                            instance.History.AddRange(new[] { msg1, msg2 }.Select(i => new ChatMessage(i.MessageId, false)));
+                        }
+
+                        ctx.Entry(instance).State = EntityState.Modified;
+                        await ctx.SaveChangesAsync();
+
+                        break;
+                    }
+                case Stage.HowManyLongboards:
+                    {
+                        if (!Int32.TryParse(update.Message.Text, out var amount))
+                        {
+                            ctx.Entry(instance).State = EntityState.Modified;
+                            await ctx.SaveChangesAsync();
+                            return;
+                        }
+
+                        if (amount <= 0)
+                        {
+                            ctx.Entry(instance).State = EntityState.Modified;
+                            await ctx.SaveChangesAsync();
+                            return;
+                        }
+
+                        instance.BotUserLongBoards.Add(new BotUserLongBoard()
+                        {
+                            BotUser = instance,
+                            Longboard = instance.Pending,
+                            BotUserId = instance.ChatId,
+                            LongboardId = instance.Pending.Id,
+                            Amount = amount
+                        });
+
+                        var msg = await client.SendTextMessageAsync(chatId, 
+                            $"Вы успешно добавили {amount.ToString()} лонгбордов {instance.Pending.Style} стиля катания в корзину!");
+
+                        instance.History.Add(new ChatMessage(msg.MessageId, false));
                         instance.Pending = null;
-                        instance.Stage = Stage.AskingIfShouldContinueAddingToBasket;
+                        instance.Stage = Stage.ShouldContinueAddingToBasket;
 
                         var msg1 = await SendInfoAboutBasket(client, instance);
                         var msg2 = await SendShouldContinueAddingToBasket(client, instance);
@@ -205,8 +239,7 @@ namespace LongBoardsBot.Models
 
                         break;
                     }
-
-                case Stage.AskingIfShouldContinueAddingToBasket:
+                case Stage.ShouldContinueAddingToBasket:
                     {
                         var result = update.Message.Text;
 
@@ -220,7 +253,7 @@ namespace LongBoardsBot.Models
                                     await Task.WhenAll(waitForPhotosMsgTask, successfulTask);
 
                                     if (successfulTask.Result)
-                                        instance.Stage = Stage.ProcessingLongboardsKeyboardInput;
+                                        instance.Stage = Stage.WhatLongBoard;
                                     else
                                     {
                                         var msg1 = await SendInfoAboutBasket(client, instance);
@@ -228,7 +261,7 @@ namespace LongBoardsBot.Models
 
                                         instance.History.AddRange(new[] { msg1, msg2 }.Select(i => new ChatMessage(i.MessageId, false)));
 
-                                        instance.Stage = Stage.AskingIfShouldContinueAddingToBasket;
+                                        instance.Stage = Stage.ShouldContinueAddingToBasket;
                                     }
                                     instance.History.Add(new ChatMessage(waitForPhotosMsgTask.Result.MessageId, false));
 
@@ -248,22 +281,28 @@ namespace LongBoardsBot.Models
                                     instance.Stage = Stage.ShouldRestartDialog;
 
                                     var readFinalMsgTask = ReadAllLinesAsync(FinalMessagePath);
-                                    var lbrds = Join(", ", instance.BotUserLongBoards.Select(i => i.Longboard).Select(i => i.Style));
+                                    var lbrds = Join(", ", instance.BotUserLongBoards.Select(i => i.Longboard.Style + "{" + i.Amount + "}"));
                                     var phone = instance.Phone;
                                     var username = instance.UserName;
                                     var name = instance.Name;
                                     var userChatId = instance.ChatId;
+                                    var cost = Math.Round(
+                                        instance
+                                        .BotUserLongBoards
+                                        .Select(i => i.Longboard.Price * i.Amount)
+                                        .Sum(), 2);
 
                                     var msgToAdminGroup =
-                                        $"@{username} хочет купить {{{lbrds}}}{Environment.NewLine}" +
+                                        $"@{username} хочет купить {{{lbrds}}} (итого стоимость: {cost.ToString()})" +
+                                        $"{Environment.NewLine}" +
                                         $"Имя: {name}, Телефон: {phone}";
                                     var msgToUser = // TODO
-                                        $"Вы купили {lbrds}. Стоимость = 5000 долларов. "; // price in 
+                                        $"Вы купили {lbrds}. Стоимость = {cost.ToString()} "; // price in 
 
                                     var msgUserTask = client.SendTextMessageAsync(userChatId, msgToUser);
                                     var msgAdminTask = client.SendTextMessageAsync(AdminGroupChatId, msgToAdminGroup);
 
-                                    await Task.Delay(50);
+                                    await Task.Delay(100);
 
                                     var msgUserTask2 = client
                                         .SendTextMessageAsync(userChatId, await readFinalMsgTask);

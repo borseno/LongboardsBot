@@ -53,6 +53,14 @@ namespace LongBoardsBot.Models
             blder.Entity<ChatMessage>()
                 .Property(i => i.MessageId)
                 .ValueGeneratedNever();
+
+            blder.Entity<BotUserLongBoard>()
+                .Property(i => i.Amount)
+                .IsRequired(true);
+
+            blder.Entity<BotUserLongBoard>()
+                .Property(i => i.Amount)
+                .HasDefaultValue(0);
         }
     }
 }

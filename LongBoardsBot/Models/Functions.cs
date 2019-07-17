@@ -163,7 +163,7 @@ namespace LongBoardsBot.Models
             instance.BotUserLongBoards.Clear();
             instance.Pending = null;
 
-            instance.Stage = Stage.ProcessingLongboardsKeyboardInput;
+            instance.Stage = Stage.WhatLongBoard;
             
         }
 
@@ -258,11 +258,13 @@ namespace LongBoardsBot.Models
         }
 
         public static Task<Message> SendInfoAboutBasket(TelegramBotClient client, BotUser user)
-            => client.SendTextMessageAsync(user.ChatId, "У вас сейчас в корзине: " + 
+            => client.SendTextMessageAsync(user.ChatId,
+                "У вас сейчас в корзине: " +
                 string.Join(", ", user
                     .BotUserLongBoards
-                    .Select(i => i.Longboard)
-                    .Select(i => i.Style)));
+                    .Select(i => $"{i.Longboard.Style}{{{i.Amount}}}"))
+                + $"Итого: {user.BotUserLongBoards.Select(i => i.Longboard.Price * i.Amount).Sum()}"
+                );
 
         public static Task<Message> SendShouldAddToBasketKeyboard(TelegramBotClient client, long chatId, string chosen)
         {
