@@ -39,12 +39,12 @@ namespace LongBoardsBot.Models
                 buttons[i] = new KeyboardButton(files[i].NameWithoutExt());
             }
 
-            var myReplyMarkup = new ReplyKeyboardMarkup(buttons, true);
+            var myReplyMarkup = new ReplyKeyboardMarkup(buttons, true, true);
 
             AllLBkboard = myReplyMarkup;
             AllLBImages = files;
             BoardsDirectory = directory;
-            RestartKBoard = new ReplyKeyboardMarkup(new KeyboardButton(RestartText));
+            RestartKBoard = new ReplyKeyboardMarkup(new[] { new KeyboardButton(RestartText) }, oneTimeKeyboard: true);
         }
     }
 }

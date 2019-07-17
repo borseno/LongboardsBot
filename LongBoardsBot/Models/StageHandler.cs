@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using LongBoardsBot.Helpers;
 using static LongBoardsBot.Helpers.FileExtensions;
 using Microsoft.EntityFrameworkCore;
+using LongBoardsBot.Models.Entities;
 
 namespace LongBoardsBot.Models
 {
@@ -69,6 +70,8 @@ namespace LongBoardsBot.Models
 
                         instance.History.Add(new ChatMessage(msg.MessageId, false));
                         instance.Stage = Stage.GettingName;
+
+                        ctx.Entry(instance).State = EntityState.Modified;
                         await ctx.SaveChangesAsync();
 
                         break;
@@ -80,9 +83,11 @@ namespace LongBoardsBot.Models
                         var msg1 = await client.AskPhone(update.Message.Chat.Id, !IsNullOrWhiteSpace(update.Message.Chat.Username));
 
                         instance.History.AddRange(new[] { msg1, msg2 }.Select(i => new ChatMessage(i.MessageId, false))); // simplify
-
                         instance.Stage = Stage.GettingPhone;
+
+                        ctx.Entry(instance).State = EntityState.Modified;
                         await ctx.SaveChangesAsync();
+
                         break;
                     }
 
@@ -95,7 +100,7 @@ namespace LongBoardsBot.Models
 
                             instance.History.Add(new ChatMessage(msg.MessageId, false));
 
-                            
+                            ctx.Entry(instance).State = EntityState.Modified;
                             await ctx.SaveChangesAsync();
 
                             return;
@@ -113,7 +118,8 @@ namespace LongBoardsBot.Models
                         instance.History.Add(new ChatMessage(msgUpdate.MessageId, false));
                         instance.History.Add(new ChatMessage(waitForPhotosMsgTask.Result.MessageId, false));
 
-                        
+                        ctx.Entry(instance).State = EntityState.Modified;
+                        await ctx.SaveChangesAsync();
 
                         break;
                     }
@@ -144,6 +150,9 @@ namespace LongBoardsBot.Models
 
                         instance.History.Add(new ChatMessage(msgShouldAddToKBoard.MessageId, false));
 
+                        ctx.Entry(instance).State = EntityState.Modified;
+                        await ctx.SaveChangesAsync();
+
                         break;
                     }
 
@@ -154,7 +163,19 @@ namespace LongBoardsBot.Models
                         var result = update.Message.Text;
 
                         if (!ValidateResult(result))
+                        {
+                            ctx.Entry(instance).State = EntityState.Modified;
+                            await ctx.SaveChangesAsync();
                             return;
+                        }
+
+                        if (result == CancelText && instance.BotUserLongBoards.Count == 0)
+                        {
+                            await RestartDialog(instance, client);
+                            ctx.Entry(instance).State = EntityState.Modified;
+                            await ctx.SaveChangesAsync();
+                            return;
+                        }
 
                         if (result == AddText)
                         {
@@ -166,7 +187,7 @@ namespace LongBoardsBot.Models
                                 LongboardId = instance.Pending.Id
                             });
 
-                            var msg = await client.SendTextMessageAsync(chatId, $"Вы успешно добавили {instance.Pending} лонгборд в корзину!");
+                            var msg = await client.SendTextMessageAsync(chatId, $"Вы успешно добавили {instance.Pending.Style} стиль катания в корзину!");
 
                             instance.History.Add(new ChatMessage(msg.MessageId, false));
                         }
@@ -178,6 +199,9 @@ namespace LongBoardsBot.Models
                         var msg2 = await SendShouldContinueAddingToBasket(client, instance);
 
                         instance.History.AddRange(new[] { msg1, msg2 }.Select(i => new ChatMessage(i.MessageId, false)));
+
+                        ctx.Entry(instance).State = EntityState.Modified;
+                        await ctx.SaveChangesAsync();
 
                         break;
                     }
@@ -204,14 +228,21 @@ namespace LongBoardsBot.Models
                                         instance.Stage = Stage.AskingIfShouldContinueAddingToBasket;
                                     }
 
+                                    ctx.Entry(instance).State = EntityState.Modified;
+                                    await ctx.SaveChangesAsync();
+
                                     break;
                                 }
 
                             case CancelText:
                                 await RestartDialog(instance, client);
+                                ctx.Entry(instance).State = EntityState.Modified;
+                                await ctx.SaveChangesAsync();
                                 break;
                             case FinishText:
                                 {
+                                    instance.Stage = Stage.ShouldRestartDialog;
+
                                     var readFinalMsgTask = ReadAllLinesAsync(FinalMessagePath);
                                     var lbrds = Join(", ", instance.BotUserLongBoards.Select(i => i.Longboard).Select(i => i.Style));
                                     var phone = instance.Phone;
@@ -240,8 +271,12 @@ namespace LongBoardsBot.Models
 
                                     await ClearHistory(instance, client);
 
-                                    instance.Stage = Stage.ShouldRestartDialog;
-                                    await client.SendTextMessageAsync(chatId, "Начать покупки заново?", replyMarkup: RestartKBoard);
+                                    var shouldRestartMsg = await client.SendTextMessageAsync(chatId, "Начать покупки заново?", replyMarkup: RestartKBoard);
+
+                                    instance.History.Add(new ChatMessage(shouldRestartMsg.MessageId, false));
+
+                                    ctx.Entry(instance).State = EntityState.Modified;
+                                    await ctx.SaveChangesAsync();
 
                                     break;
                                 }
@@ -255,20 +290,18 @@ namespace LongBoardsBot.Models
                 case Stage.ShouldRestartDialog:
                     {
                         var text = update.Message.Text;
-                        if (text != RestartText)
-                        {
-                            return;
-                        }
 
-                        await StartNewDialog(instance, client);
+                        if (text == RestartText)
+                        {
+                            await StartNewDialog(instance, client);
+                        }
+                        
+                        ctx.Entry(instance).State = EntityState.Modified;
+                        await ctx.SaveChangesAsync();
 
                         break;
                     }
             }
-
-            ctx.Entry(instance).State = EntityState.Modified;
-
-            await ctx.SaveChangesAsync();
         }
     }
 }

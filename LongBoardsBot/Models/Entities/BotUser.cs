@@ -1,8 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using LongBoardsBot.Models.Entities;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 
-namespace LongBoardsBot.Models
+namespace LongBoardsBot.Models.Entities
 {
     public class BotUser
     {
@@ -26,13 +27,5 @@ namespace LongBoardsBot.Models
 
         public List<LongBoard> GetBasket()
             => BotUserLongBoards.Select(i => i.Longboard).ToList();
-    }
-
-    public class BotUserLongBoard
-    {
-        public long BotUserId { get; set; }
-        public int LongboardId { get; set; }
-        public LongBoard Longboard { get; set; }
-        public BotUser BotUser { get; set; }
     }
 }

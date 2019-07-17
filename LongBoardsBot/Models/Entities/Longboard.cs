@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
-namespace LongBoardsBot.Models
+namespace LongBoardsBot.Models.Entities
 {
     public class LongBoard
     {

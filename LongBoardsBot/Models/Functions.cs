@@ -11,6 +11,7 @@ using System.Drawing.Imaging;
 using Telegram.Bot.Types.ReplyMarkups;
 using LongBoardsBot.Helpers;
 using Microsoft.EntityFrameworkCore;
+using LongBoardsBot.Models.Entities;
 
 namespace LongBoardsBot.Models
 {
@@ -30,14 +31,15 @@ namespace LongBoardsBot.Models
             var info = GetInfo(board.Style, BoardsDirectory);
             var textFile = info.First(i => i.Name == TextFileName);
             var photos = info.Where(i => i.Extension == ImageExtension);
-
+            
             var textTask = FileExtensions.ReadAllLinesAsync(textFile.FullName);
             var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, "Идет отправка фотографий...");
             var photosMsgTask = SendPhotos(chatId, client, photos);
 
             await Task.WhenAll(waitForPhotosMsgTask, photosMsgTask, textTask);
 
-            var textMsg = await client.SendTextMessageAsync(chatId, textTask.Result);
+            var toSend = $"Цена: {board.Price}" + Environment.NewLine + textTask.Result;
+            var textMsg = await client.SendTextMessageAsync(chatId, toSend);
 
             user.History.AddRange(photosMsgTask.Result.Select(i => new ChatMessage(i.MessageId, false)));
             user.History.Add(new ChatMessage(textMsg.MessageId, false));
@@ -134,8 +136,10 @@ namespace LongBoardsBot.Models
         /// <param name="client"></param>
         /// <returns></returns>
         public static async Task RestartDialog(BotUser instance, TelegramBotClient client)
-        => await ClearHistory(instance, client).ContinueWith(_ => StartNewDialog(instance, client));
-
+        {
+            await ClearHistory(instance, client);
+            await StartNewDialog(instance, client);
+        }
         /// <summary>
         /// <para>1. Sets entity's stage to ProcessingLongboardsKeyboardInput</para>
         /// <para>2. Sends longboards keyboardand asks to choose longboard</para>
@@ -153,6 +157,7 @@ namespace LongBoardsBot.Models
 
             instance.History.Add(new ChatMessage(msg1.MessageId, false));
             instance.BotUserLongBoards.Clear();
+            instance.Pending = null;
 
             instance.Stage = Stage.ProcessingLongboardsKeyboardInput;
         }
@@ -160,11 +165,12 @@ namespace LongBoardsBot.Models
         public static Task<Message> SendShouldContinueAddingToBasket(TelegramBotClient client, BotUser instance)
         {
             var text = $"Вы хотите продолжить покупки?";
+       
             var btnYes = new KeyboardButton(YesText);
             var btnCancel = new KeyboardButton(CancelText);
             var btnFinish = new KeyboardButton(FinishText);
 
-            var keyboard = new ReplyKeyboardMarkup(new[] { btnYes, btnCancel, btnFinish }, true);
+            var keyboard = new ReplyKeyboardMarkup(new[] { btnYes, btnCancel, btnFinish }, true, true);
 
             return client.SendTextMessageAsync(instance.ChatId, text, replyMarkup: keyboard);
         }
