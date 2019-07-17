@@ -153,13 +153,18 @@ namespace LongBoardsBot.Models
         {
             var chatId = instance.ChatId;
 
-            var msg1 = await client.SendTextMessageAsync(chatId, "Choose longboard!", replyMarkup: AllLBkboard);
+            var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, "Идет отправка фотографий...");
+            var msg1Task = client.SendTextMessageAsync(chatId, "Choose longboard!", replyMarkup: AllLBkboard);
 
-            instance.History.Add(new ChatMessage(msg1.MessageId, false));
+            await Task.WhenAll(waitForPhotosMsgTask, msg1Task);
+
+            instance.History.Add(new ChatMessage(msg1Task.Result.MessageId, false));
+            instance.History.Add(new ChatMessage(waitForPhotosMsgTask.Result.MessageId, false));
             instance.BotUserLongBoards.Clear();
             instance.Pending = null;
 
             instance.Stage = Stage.ProcessingLongboardsKeyboardInput;
+            
         }
 
         public static Task<Message> SendShouldContinueAddingToBasket(TelegramBotClient client, BotUser instance)

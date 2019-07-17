@@ -214,9 +214,12 @@ namespace LongBoardsBot.Models
                         {
                             case YesText:
                                 {
-                                    var successful = await SendLongBoards(client, instance.ChatId, instance.History, instance.BotUserLongBoards.Select(i => i.Longboard));
+                                    var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, "Идет отправка фотографий...");
+                                    var successfulTask = SendLongBoards(client, instance.ChatId, instance.History, instance.BotUserLongBoards.Select(i => i.Longboard));
 
-                                    if (successful)
+                                    await Task.WhenAll(waitForPhotosMsgTask, successfulTask);
+
+                                    if (successfulTask.Result)
                                         instance.Stage = Stage.ProcessingLongboardsKeyboardInput;
                                     else
                                     {
@@ -227,6 +230,7 @@ namespace LongBoardsBot.Models
 
                                         instance.Stage = Stage.AskingIfShouldContinueAddingToBasket;
                                     }
+                                    instance.History.Add(new ChatMessage(waitForPhotosMsgTask.Result.MessageId, false));
 
                                     ctx.Entry(instance).State = EntityState.Modified;
                                     await ctx.SaveChangesAsync();
