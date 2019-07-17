@@ -62,6 +62,15 @@ namespace LongBoardsBot.Models
 
             instance.History.Add(new ChatMessage(update.Message.MessageId, false));
 
+            if (update.Message.Text == @"/restart")
+            {
+                await ClearHistory(instance, client);
+
+                instance.Pending = null;
+                instance.BotUserLongBoards.Clear();
+                instance.Stage = Stage.AskingName;
+            }
+
             switch (instance.Stage)
             {
                 case Stage.AskingName:
