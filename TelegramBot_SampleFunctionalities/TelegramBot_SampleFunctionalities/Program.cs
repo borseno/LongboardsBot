@@ -22,9 +22,13 @@ namespace TelegramBot_SampleFunctionalities
             Bot.StartReceiving();
             Bot.OnUpdate += async (obj, args) =>
             {
-                if (args.Update.Message.Text == "asdlaskdjl1k23j213k1j23lkjmn,mnc,zmxnczxm,cn,zxmcnskj32kj4")
+                if (args.Update.Message.Text == "44")
                 {
                     await Bot.SendTextMessageAsync(args.Update.Message.Chat.Id, args.Update.Message.Chat.Id.ToString());
+                }
+                if (args.Update.Message.Sticker != null)
+                {
+                    await Bot.SendTextMessageAsync(args.Update.Message.Chat.Id, args.Update.Message.Sticker.FileId);
                 }
 
                 if (args.Update.Message.Chat.Id == AdminGroupChatId)

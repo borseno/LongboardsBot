@@ -12,6 +12,8 @@
         ShouldAddLongboardToBasket = 4,
         ShouldContinueAddingToBasket = 5,
         ShouldRestartDialog = 6,
-        HowManyLongboards = 7
+        HowManyLongboards = 7,
+        GettingShouldDeliverToHomeOrNot,
+        GettingHomeAdress
     }
 }

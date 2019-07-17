@@ -64,7 +64,7 @@ namespace LongBoardsBot.Models
 
             if (update.Message.Text == @"/restart")
             {
-                await ClearHistory(instance, client);
+                await ClearHistory(instance, client, true);
 
                 instance.Pending = null;
                 instance.BotUserLongBoards.Clear();
@@ -75,9 +75,13 @@ namespace LongBoardsBot.Models
             {
                 case Stage.AskingName:
                     {
+                        var msg2 = await client.SendStickerAsync(chatId, "CAADAgADKwcAAmMr4gmfxHm1DmV88gI");
+                        var msg1 = await client.SendTextMessageAsync(chatId, GreetingText);
                         var msg = await client.AskName(chatId);
 
                         instance.History.Add(new ChatMessage(msg.MessageId, false));
+                        instance.History.Add(new ChatMessage(msg1.MessageId, false));
+                        instance.History.Add(new ChatMessage(msg2.MessageId, false));
                         instance.Stage = Stage.GettingName;
 
                         ctx.Entry(instance).State = EntityState.Modified;
@@ -87,6 +91,16 @@ namespace LongBoardsBot.Models
                     }
                 case Stage.GettingName:
                     {
+                        if (!Regex.IsMatch(update.Message.Text, @"^[а-яА-Яa-zA-Z][а-яa-z]*$"))
+                        {
+                            var msg = await client.SendTextMessageAsync(chatId, "Введите, пожалуйста, настоящее имя для дальнейшего общения!");
+                            instance.History.Add(new ChatMessage(msg.MessageId, false));
+
+                            ctx.Entry(instance).State = EntityState.Modified;
+                            await ctx.SaveChangesAsync();
+                            return;
+                        }
+
                         var msg2 = await UpdateUsersNameAndUsername(client, update.Message, storage);
                         var msg1 = await client.AskPhone(update.Message.Chat.Id, !IsNullOrWhiteSpace(update.Message.Chat.Username));
 
@@ -287,48 +301,13 @@ namespace LongBoardsBot.Models
                                 break;
                             case FinishText:
                                 {
-                                    instance.Stage = Stage.ShouldRestartDialog;
+                                    var msg = await client.SendTextMessageAsync(chatId, DeliverOrNotText, replyMarkup: DeliverOrNotKBoard);
 
-                                    var readFinalMsgTask = ReadAllLinesAsync(FinalMessagePath);
-                                    var lbrds = Join(", ", instance.BotUserLongBoards.Select(i => i.Longboard.Style + "{" + i.Amount + "}"));
-                                    var phone = instance.Phone;
-                                    var username = instance.UserName;
-                                    var name = instance.Name;
-                                    var userChatId = instance.ChatId;
-                                    var cost = Math.Round(
-                                        instance
-                                        .BotUserLongBoards
-                                        .Select(i => i.Longboard.Price * i.Amount)
-                                        .Sum(), 2);
-
-                                    var msgToAdminGroup =
-                                        $"@{username} хочет купить {{{lbrds}}} (итого стоимость: {cost.ToString()})" +
-                                        $"{Environment.NewLine}" +
-                                        $"Имя: {name}, Телефон: {phone}";
-                                    var msgToUser = // TODO
-                                        $"Вы купили {lbrds}. Стоимость = {cost.ToString()} "; // price in 
-
-                                    var msgUserTask = client.SendTextMessageAsync(userChatId, msgToUser);
-                                    var msgAdminTask = client.SendTextMessageAsync(AdminGroupChatId, msgToAdminGroup);
-
-                                    await Task.Delay(100);
-
-                                    var msgUserTask2 = client
-                                        .SendTextMessageAsync(userChatId, await readFinalMsgTask);
-
-                                    await Task.WhenAll(msgUserTask, msgAdminTask, msgUserTask2);
-
-                                    instance.History.Add(new ChatMessage(msgUserTask.Result.MessageId, true));
-                                    instance.History.Add(new ChatMessage(msgUserTask2.Result.MessageId, true));
-
-                                    await ClearHistory(instance, client);
-
-                                    var shouldRestartMsg = await client.SendTextMessageAsync(chatId, "Начать покупки заново?", replyMarkup: RestartKBoard);
-
-                                    instance.History.Add(new ChatMessage(shouldRestartMsg.MessageId, false));
-
-                                    ctx.Entry(instance).State = EntityState.Modified;
+                                    instance.Stage = Stage.GettingShouldDeliverToHomeOrNot;
+                                    instance.History.Add(new ChatMessage(msg.MessageId, false));
                                     await ctx.SaveChangesAsync();
+
+//                                    await OnPurchaseFinishing(instance, client);
 
                                     break;
                                 }
@@ -339,6 +318,40 @@ namespace LongBoardsBot.Models
                         break;
 
                     }
+                case Stage.GettingShouldDeliverToHomeOrNot:
+                    {
+                        var text = update.Message.Text;
+
+                        if (text == DeliverBtnText)
+                        {
+                            instance.Stage = Stage.GettingHomeAdress;
+
+                            var msg = await client.SendTextMessageAsync(chatId, WriteHomeAdressText);
+
+                            instance.History.Add(new ChatMessage(msg.MessageId, false));
+
+                            await ctx.SaveChangesAsync();
+                        }
+                        else
+                        {
+                            var msg = await client.SendTextMessageAsync(chatId, PlaceToTakeLongBoardText);
+
+                            instance.History.Add(new ChatMessage(msg.MessageId, true));
+
+                            await OnPurchaseFinishing(instance, client);
+                        }
+
+                        break;
+                    }
+                case Stage.GettingHomeAdress:
+                    {
+                        var adress = update.Message.Text;
+
+                        await OnPurchaseFinishing(instance, client, adress);
+
+                        break;
+                    }
+
                 case Stage.ShouldRestartDialog:
                     {
                         var text = update.Message.Text;
@@ -354,6 +367,57 @@ namespace LongBoardsBot.Models
                         break;
                     }
             }
+        }
+
+        private async Task OnPurchaseFinishing(BotUser instance, TelegramBotClient client, string additionalInfoForAdmin = "")
+        {
+            var chatId = instance.ChatId;
+
+            instance.Stage = Stage.ShouldRestartDialog;
+
+            var readFinalMsgTask = ReadAllLinesAsync(FinalMessagePath);
+            var lbrds = Join(", ", instance.BotUserLongBoards.Select(i => i.Longboard.Style + "{" + i.Amount + "}"));
+            var phone = instance.Phone;
+            var username = instance.UserName;
+            var name = instance.Name;
+            var userChatId = instance.ChatId;
+            var cost = Math.Round(
+                instance
+                .BotUserLongBoards
+                .Select(i => i.Longboard.Price * i.Amount)
+                .Sum(), 2);
+
+            var msgToAdminGroup =
+                $"@{username} хочет купить {{{lbrds}}} (итого стоимость: {cost.ToString()})" +
+                $"{Environment.NewLine}" +
+                $"Имя: {name}, Телефон: {phone}" +
+                Environment.NewLine +
+                additionalInfoForAdmin;
+            var msgToUser = // TODO
+                $"Вы купили {lbrds}. Стоимость = {cost.ToString()} "; // price in 
+
+            var msgUserTask = client.SendTextMessageAsync(userChatId, msgToUser);
+            var msgAdminTask = client.SendTextMessageAsync(AdminGroupChatId, msgToAdminGroup);
+
+            await Task.Delay(100);
+
+            var msgUserTask2 = client
+                .SendTextMessageAsync(userChatId, await readFinalMsgTask);
+
+            await Task.WhenAll(msgUserTask, msgAdminTask, msgUserTask2);
+
+            instance.History.Add(new ChatMessage(msgUserTask.Result.MessageId, true));
+            instance.History.Add(new ChatMessage(msgUserTask2.Result.MessageId, true));
+
+            await ClearHistory(instance, client);
+
+            var shouldRestartMsg = await client.SendTextMessageAsync(chatId, "Начать покупки заново?", replyMarkup: RestartKBoard);
+
+            instance.History.Add(new ChatMessage(shouldRestartMsg.MessageId, false));
+
+            ctx.Entry(instance).State = EntityState.Modified;
+            await ctx.SaveChangesAsync();
+
         }
     }
 }

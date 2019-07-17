@@ -22,11 +22,21 @@ namespace LongBoardsBot.Models
         public const string ImageExtension = ".jpg";
         public const string FinalMessagePath = @"Models\Texts\FinalMessage.txt";
         public const string RestartText = "Начать покупки заново";
+        public const string GreetingText = @"Здравствуйте, вас приветствует компания Лонгбордист! 
+Купить лонгборд для любого стиля катания, можно используя этот бот.
+Цена указывается после выбора желаемого стиля (подробнее о стилях можно почитать на сайте longboardist.kharkiv.com)";
+        public const string ChooseLongBoardText = @"Выберите лонгборд в зависимости от желаемого стиля катания:";
+        public const string DeliverOrNotText = @"Вам доставить или вы сами придете?";
+        public const string DeliverBtnText = "Доставить";
+        public const string TakeMySelfBtnText = "Заберу сам";
+        public const string WriteHomeAdressText = @"Напишите свой адрес для доставки";
+        public const string PlaceToTakeLongBoardText = @"Адрес для получения лонгборда: ст. метро защитников украины, рэббит кофе";
 
         public static readonly ReplyKeyboardMarkup AllLBkboard; // keyboard for all longboards
         public static readonly FileInfo[] AllLBImages;
         public static readonly DirectoryInfo BoardsDirectory;
         public static readonly ReplyKeyboardMarkup RestartKBoard;
+        public static readonly ReplyKeyboardMarkup DeliverOrNotKBoard;
 
         static Constants()
         {
@@ -44,7 +54,13 @@ namespace LongBoardsBot.Models
             AllLBkboard = myReplyMarkup;
             AllLBImages = files;
             BoardsDirectory = directory;
-            RestartKBoard = new ReplyKeyboardMarkup(new[] { new KeyboardButton(RestartText) }, oneTimeKeyboard: true);
+            RestartKBoard = new ReplyKeyboardMarkup(new[] { new KeyboardButton(RestartText) }, oneTimeKeyboard: true, resizeKeyboard: true);
+
+            DeliverOrNotKBoard = new ReplyKeyboardMarkup(new[]
+            {
+                new KeyboardButton(DeliverBtnText),
+                new KeyboardButton(TakeMySelfBtnText)
+            }, true, true);
         }
     }
 }

@@ -106,7 +106,7 @@ namespace LongBoardsBot.Models
         /// <param name="instance"></param>
         /// <param name="client"></param>
         /// <returns></returns>
-        public static Task ClearHistory(BotUser instance, TelegramBotClient client)
+        public static Task ClearHistory(BotUser instance, TelegramBotClient client, bool deleteAll = false)
         {
             var chatId = instance.ChatId;
             var list = instance.History;
@@ -115,7 +115,7 @@ namespace LongBoardsBot.Models
             for (int i = list.Count - 1; i >= 0; i--)
             {
                 var elem = list.ElementAt(i);
-                if (!elem.IgnoreDelete)
+                if (!elem.IgnoreDelete || deleteAll)
                 {
                     deleteTasks.Add(client.DeleteMessageAsync(chatId, elem.MessageId));
                     list.RemoveAt(i);
@@ -154,7 +154,7 @@ namespace LongBoardsBot.Models
             var chatId = instance.ChatId;
 
             var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, "Идет отправка фотографий...");
-            var msg1Task = client.SendTextMessageAsync(chatId, "Choose longboard!", replyMarkup: AllLBkboard);
+            var msg1Task = client.SendTextMessageAsync(chatId, ChooseLongBoardText, replyMarkup: AllLBkboard);
 
             await Task.WhenAll(waitForPhotosMsgTask, msg1Task);
 
@@ -226,7 +226,7 @@ namespace LongBoardsBot.Models
             var msgs = await client.SendMediaGroupAsync(chatId, photos);
 
             // send msg + keyboard
-            var msg = await client.SendTextMessageAsync(chatId, "Choose longboard!", replyMarkup: myReplyMarkup);
+            var msg = await client.SendTextMessageAsync(chatId, ChooseLongBoardText, replyMarkup: myReplyMarkup);
 
             // now that photos are sent we don't need to keep them in memory anymore
             streams.ForEach(i => i.Dispose());
@@ -238,7 +238,7 @@ namespace LongBoardsBot.Models
             if (neededfiles.Length == AllLBImages.Length)
             {
                 // then add it to history of messages but don't delete it and use in the future
-                msgStorage.AddRange(msgs.Select(i => new ChatMessage(i.MessageId, ignoreDelete: true)));
+                msgStorage.AddRange(msgs.Select(i => new ChatMessage(i.MessageId, ignoreDelete: false)));
             }
             else // otherwise, don't use in the future
             {
