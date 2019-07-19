@@ -12,6 +12,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 using LongBoardsBot.Helpers;
 using Microsoft.EntityFrameworkCore;
 using LongBoardsBot.Models.Entities;
+using Telegram.Bot.Exceptions;
 
 namespace LongBoardsBot.Models
 {
@@ -31,7 +32,7 @@ namespace LongBoardsBot.Models
             var info = GetInfo(board.Style, BoardsDirectory);
             var textFile = info.First(i => i.Name == TextFileName);
             var photos = info.Where(i => i.Extension == ImageExtension);
-            
+
             var textTask = FileExtensions.ReadAllLinesAsync(textFile.FullName);
             var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, "Идет отправка фотографий...");
             var photosMsgTask = SendPhotos(chatId, client, photos);
@@ -97,7 +98,7 @@ namespace LongBoardsBot.Models
         /// <param name="startDirectory"></param>
         /// <returns></returns>
         public static FileInfo[] GetInfo(string subDirectory, DirectoryInfo startDirectory)
-            => startDirectory.GetDirectories().First(i => i.Name == subDirectory).GetFiles();    
+            => startDirectory.GetDirectories().First(i => i.Name == subDirectory).GetFiles();
 
         /// <summary>
         /// <para>1. deletes all not marked as "deleteIgnore" messages that are in the History property of a given instance of BotUser class</para>
@@ -115,10 +116,17 @@ namespace LongBoardsBot.Models
             for (int i = list.Count - 1; i >= 0; i--)
             {
                 var elem = list.ElementAt(i);
-                if (!elem.IgnoreDelete || deleteAll)
+                try
                 {
-                    deleteTasks.Add(client.DeleteMessageAsync(chatId, elem.MessageId));
-                    list.RemoveAt(i);
+                    if (!elem.IgnoreDelete || deleteAll)
+                    {
+                        deleteTasks.Add(client.DeleteMessageAsync(chatId, elem.MessageId));
+                        list.RemoveAt(i);
+                    }
+                }
+                catch (ApiRequestException)
+                {
+                    list.Remove(elem);
                 }
             }
 
@@ -135,7 +143,7 @@ namespace LongBoardsBot.Models
         /// <param name="instance"></param>
         /// <param name="client"></param>
         /// <returns></returns>
-        public static async Task RestartDialog(BotUser instance, TelegramBotClient client)
+        public static async Task RestartPurchasing(BotUser instance, TelegramBotClient client)
         {
             await ClearHistory(instance, client);
             await StartNewDialog(instance, client);
@@ -154,23 +162,22 @@ namespace LongBoardsBot.Models
             var chatId = instance.ChatId;
 
             var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, "Идет отправка фотографий...");
-            var msg1Task = client.SendTextMessageAsync(chatId, ChooseLongBoardText, replyMarkup: AllLBkboard);
+            var sendingLongBoardsTask = SendLongBoards(client, chatId, instance.History);
 
-            await Task.WhenAll(waitForPhotosMsgTask, msg1Task);
+            await Task.WhenAll(waitForPhotosMsgTask, sendingLongBoardsTask);
 
-            instance.History.Add(new ChatMessage(msg1Task.Result.MessageId, false));
             instance.History.Add(new ChatMessage(waitForPhotosMsgTask.Result.MessageId, false));
             instance.BotUserLongBoards.Clear();
             instance.Pending = null;
 
             instance.Stage = Stage.WhatLongBoard;
-            
+
         }
 
         public static Task<Message> SendShouldContinueAddingToBasket(TelegramBotClient client, BotUser instance)
         {
             var text = $"Вы хотите продолжить покупки?";
-       
+
             var btnYes = new KeyboardButton(YesText);
             var btnCancel = new KeyboardButton(CancelText);
             var btnFinish = new KeyboardButton(FinishText);
@@ -187,7 +194,7 @@ namespace LongBoardsBot.Models
                 boardsToIgnore = Enumerable.Empty<LongBoard>();
 
             var allFiles = AllLBImages;
-            var neededfiles = allFiles.Where(i => !boardsToIgnore.Any(j => j.Style == i.NameWithoutExt()) ).ToArray();
+            var neededfiles = allFiles.Where(i => !boardsToIgnore.Any(j => j.Style == i.NameWithoutExt())).ToArray();
             var success = neededfiles.Length >= 1;
 
             if (!success)

@@ -47,8 +47,8 @@ namespace LongBoardsBot.Controllers
                 var nl = Environment.NewLine;
 
                 await bot.SendTextMessageAsync(BugReportChatId, 
-                    e.Message + nl + nl + e.InnerException.Message + nl + nl
-                    + e.StackTrace);
+                    e.GetType().Name + nl + e?.Message + nl + nl + e?.InnerException?.Message + nl + nl
+                    + e?.StackTrace);
 
                 return Ok();
             }

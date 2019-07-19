@@ -26,13 +26,14 @@ namespace LongBoardsBot.Models
 
         public async Task HandleUpdate(TelegramBotClient client, Update update)
         {
-            if (update.Message == null)
+            var message = update.Message;
+
+            if (message == null)
                 return;
 
             var storage = ctx.BotUsers;
 
-            var included = ctx
-                .BotUsers
+            var includedQuery = storage
                 .Include(i => i.BotUserLongBoards)
                     .ThenInclude(j => j.Longboard)
                 .Include(i => i.BotUserLongBoards)
@@ -41,335 +42,341 @@ namespace LongBoardsBot.Models
                 .Include(i => i.History)
                     .ThenInclude(j => j.User);
 
-            var chatId = update.Message.Chat.Id;
-            var instance = await included.FirstOrDefaultAsync(i => i.ChatId == chatId);
+            var chatId = message.Chat.Id;
+            var text = message.Text;
+            var instance = await includedQuery.FirstOrDefaultAsync(i => i.ChatId == chatId);
 
             if (instance == null)
             {
                 instance = new BotUser
                 {
                     ChatId = chatId,
-                    Name = "0",
-                    Phone = "0",
-                    UserName = update.Message.Chat.Username,
-                    Stage = 0,
-                    History = new List<ChatMessage>(4)
+                    UserName = message.Chat.Username,
+                    Stage = Stage.AskingName,
+                    History = new List<ChatMessage>(16)
                 };
 
                 storage.Add(instance);
+                await ctx.SaveChangesAsync(); // test removing this line, my bet: shouldn't make a difference
+            }
+
+            async Task DoWork()
+            {
+                instance.History.Add(new ChatMessage(message.MessageId, false));
+
+                if (text == RestartCommand)
+                {
+                    await ReloadUserChat(client, instance);
+                }
+
+                switch (instance.Stage)
+                {
+                    case Stage.AskingName:
+                        {
+                            await GreetAndAskName(client, chatId, instance);
+
+                            instance.Stage = Stage.GettingName;
+
+                            ctx.Entry(instance).State = EntityState.Modified;
+                            await ctx.SaveChangesAsync();
+
+                            break;
+                        }
+                    case Stage.GettingName:
+                        {
+                            if (!Regex.IsMatch(text, NameRegexp))
+                            {
+                                await AskToEnterCorrectName(client, instance, chatId);
+                            }
+                            else
+                            {
+                                instance.Stage = Stage.GettingPhone;
+                                await UpdateNameAndAskPhone(client, message, storage, instance);
+                            }
+
+                            break;
+                        }
+                    case Stage.GettingPhone:
+                        {
+                            if (!Regex.IsMatch(text, PhoneRegexp))
+                            {
+                                await AskToEnterCorrectPhone(client, chatId, instance);
+                            }
+                            else
+                            {
+                                instance.Stage = Stage.WhatLongBoard;
+
+                                await UpdatePhoneInfo(client, message, storage, instance);
+
+                                await SendAllLongboards(client, message, chatId, instance);
+                            }
+
+                            break;
+                        }
+                    case Stage.WhatLongBoard:
+                        {
+                            var isLongBoard = ExistsLongBoard(text);
+
+                            if (isLongBoard)
+                            {
+                                instance.Stage = Stage.ShouldAddLongboardToBasket;
+                                await SendInfoAboutLongboard(client, chatId, text, instance);
+                            }
+
+                            break;
+                        }
+                    case Stage.ShouldAddLongboardToBasket:
+                        {
+                            // cancelling with 0 lb chosen
+                            if (text == CancelText && instance.BotUserLongBoards.Count == 0)
+                            {
+                                await RestartPurchasing(instance, client);
+                            }
+                            else if (text == AddText)
+                            {
+                                instance.Stage = Stage.HowManyLongboards;
+                                await AskToTypeAmountOfLBoards(client, chatId, instance);
+                            } // cancelling with more than 1 lb chosen
+                            else if (text == CancelText)
+                            {
+                                instance.Stage = Stage.ShouldContinueAddingToBasket;
+                                await AskIfShouldContinueAddingToBasket(client, instance);
+                            }
+
+                            break;
+                        }
+                    case Stage.HowManyLongboards:
+                        {
+                            if (Int32.TryParse(text, out var amount) && amount > 0)
+                            {
+                                instance.Stage = Stage.ShouldContinueAddingToBasket;
+                                await AddToBasketAndNotify(client, chatId, instance, amount);
+                                await AskIfShouldContinueAddingToBasket(client, instance);
+                            }
+
+                            break;
+                        }
+                    case Stage.ShouldContinueAddingToBasket:
+                        {
+                            if (text == YesText)
+                            {
+                                var success = await SendNotInBasketLBoards(client, chatId, instance);
+
+                                if (success)
+                                {
+                                    instance.Stage = Stage.WhatLongBoard;
+                                }
+                                else
+                                {
+                                    await AskIfShouldContinueAddingToBasket(client, instance);
+                                }
+                            }
+                            else if (text == CancelText)
+                            {
+                                await RestartPurchasing(instance, client);
+                            }
+                            else if (text == FinishText)
+                            {
+                                instance.Stage = Stage.GettingShouldDeliverToHomeOrNot;
+
+                                await AskAboutDelivery(client, chatId, instance.History);
+                            }
+
+                            break;
+                        }
+                    case Stage.GettingShouldDeliverToHomeOrNot:
+                        {
+                            if (text == DeliverBtnText)
+                            {
+                                instance.Stage = Stage.GettingHomeAdress;
+
+                                await AskToTypeAdressToDeliver(client, chatId, instance);
+                            }
+                            else if (text == TakeMySelfBtnText)
+                            {
+                                await SendPlaceForTakingLBInfo(client, chatId, instance);
+                                await OnPurchaseFinishing(instance, client);
+                            }
+
+                            break;
+                        }
+                    case Stage.GettingHomeAdress:
+                        {
+                            await OnPurchaseFinishing(instance, client, text);
+
+                            break;
+                        }
+                    case Stage.ShouldRestartDialog:
+                        {
+                            if (text == RestartText)
+                            {
+                                await StartNewDialog(instance, client);
+                            }
+
+                            break;
+                        }
+                }
+            }
+            async Task SaveChanges()
+            {
+                ctx.Entry(instance).State = EntityState.Modified;
                 await ctx.SaveChangesAsync();
             }
 
-            instance.History.Add(new ChatMessage(update.Message.MessageId, false));
-
-            if (update.Message.Text == @"/restart")
-            {
-                await ClearHistory(instance, client, true);
-
-                instance.Pending = null;
-                instance.BotUserLongBoards.Clear();
-                instance.Stage = Stage.AskingName;
-            }
-
-            switch (instance.Stage)
-            {
-                case Stage.AskingName:
-                    {
-                        var msg2 = await client.SendStickerAsync(chatId, "CAADAgADKwcAAmMr4gmfxHm1DmV88gI");
-                        var msg1 = await client.SendTextMessageAsync(chatId, GreetingText);
-                        var msg = await client.AskName(chatId);
-
-                        instance.History.Add(new ChatMessage(msg.MessageId, false));
-                        instance.History.Add(new ChatMessage(msg1.MessageId, false));
-                        instance.History.Add(new ChatMessage(msg2.MessageId, false));
-                        instance.Stage = Stage.GettingName;
-
-                        ctx.Entry(instance).State = EntityState.Modified;
-                        await ctx.SaveChangesAsync();
-
-                        break;
-                    }
-                case Stage.GettingName:
-                    {
-                        if (!Regex.IsMatch(update.Message.Text, @"^[а-яА-Яa-zA-Z][а-яa-z]*$"))
-                        {
-                            var msg = await client.SendTextMessageAsync(chatId, "Введите, пожалуйста, настоящее имя для дальнейшего общения!");
-                            instance.History.Add(new ChatMessage(msg.MessageId, false));
-
-                            ctx.Entry(instance).State = EntityState.Modified;
-                            await ctx.SaveChangesAsync();
-                            return;
-                        }
-
-                        var msg2 = await UpdateUsersNameAndUsername(client, update.Message, storage);
-                        var msg1 = await client.AskPhone(update.Message.Chat.Id, !IsNullOrWhiteSpace(update.Message.Chat.Username));
-
-                        instance.History.AddRange(new[] { msg1, msg2 }.Select(i => new ChatMessage(i.MessageId, false))); // simplify
-                        instance.Stage = Stage.GettingPhone;
-
-                        ctx.Entry(instance).State = EntityState.Modified;
-                        await ctx.SaveChangesAsync();
-
-                        break;
-                    }
-                case Stage.GettingPhone:
-                    {
-                        if (!Regex.IsMatch(update.Message.Text, @"^\+?3?8?(0[5-9][0-9]\d{7})$"))
-                        {
-                            var msg = await client.SendTextMessageAsync(chatId, 
-                                @"Вы ввели некорректный номер. Ввведите номер, начинающийся на +380...");
-
-                            instance.History.Add(new ChatMessage(msg.MessageId, false));
-
-                            ctx.Entry(instance).State = EntityState.Modified;
-                            await ctx.SaveChangesAsync();
-
-                            return;
-                        }
-
-                        instance.Stage = Stage.WhatLongBoard;
-
-                        var msgUpdate = await UpdateUsersPhoneAndUsername(client, update.Message, storage);
-
-                        var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, "Идет отправка фотографий...");
-                        var photosTask = SendLongBoards(client, update.Message.Chat.Id, instance.History);
-
-                        await Task.WhenAll(waitForPhotosMsgTask, photosTask);
-
-                        instance.History.Add(new ChatMessage(msgUpdate.MessageId, false));
-                        instance.History.Add(new ChatMessage(waitForPhotosMsgTask.Result.MessageId, false));
-
-                        ctx.Entry(instance).State = EntityState.Modified;
-                        await ctx.SaveChangesAsync();
-
-                        break;
-                    }
-                case Stage.WhatLongBoard:
-                    {
-                        var lbText = update.Message.Text;
-
-                        var isLongBoard = ExistsLongBoard(lbText);
-
-                        if (!isLongBoard)
-                        {
-                            ctx.Entry(instance).State = EntityState.Modified;
-                            await ctx.SaveChangesAsync();
-                            return;
-                        }
-
-                        var lb = await ctx.Longboards.FirstAsync(i => i.Style == lbText);
-
-                        instance.Pending = lb;
-                        instance.Stage = Stage.ShouldAddLongboardToBasket; // set before messages are sent so that there won't be multiple msg sent
-
-                        // TODO: add here sending more info about lb
-                        await SendInfoAbout(instance.Pending, instance, client);
-                        var msgShouldAddToKBoard = await SendShouldAddToBasketKeyboard(client, chatId, lbText);
-
-                        instance.History.Add(new ChatMessage(msgShouldAddToKBoard.MessageId, false));
-
-                        ctx.Entry(instance).State = EntityState.Modified;
-                        await ctx.SaveChangesAsync();
-
-                        break;
-                    }
-                case Stage.ShouldAddLongboardToBasket:
-                    {
-                        bool ValidateResult(string value) => value == CancelText || value == AddText;
-
-                        var result = update.Message.Text;
-
-                        if (!ValidateResult(result))
-                        {
-                            ctx.Entry(instance).State = EntityState.Modified;
-                            await ctx.SaveChangesAsync();
-                            return;
-                        }
-
-                        if (result == CancelText && instance.BotUserLongBoards.Count == 0)
-                        {
-                            await RestartDialog(instance, client);
-                            ctx.Entry(instance).State = EntityState.Modified;
-                            await ctx.SaveChangesAsync();
-                            return;
-                        }
-
-                        if (result == AddText)
-                        {
-                            instance.Stage = Stage.HowManyLongboards;
-
-                            var msg = await client.SendTextMessageAsync(chatId, 
-                                $"Вы собираетесь добавить лонгборды {instance.Pending.Style} " +
-                                $"стиля катания в корзину. Укажите количество");
-
-                            instance.History.Add(new ChatMessage(msg.MessageId, false));
-                        }
-                        else if (result == CancelText)
-                        {
-                            instance.Pending = null;
-                            instance.Stage = Stage.ShouldContinueAddingToBasket;
-
-                            var msg1 = await SendInfoAboutBasket(client, instance);
-                            var msg2 = await SendShouldContinueAddingToBasket(client, instance);
-
-                            instance.History.AddRange(new[] { msg1, msg2 }.Select(i => new ChatMessage(i.MessageId, false)));
-                        }
-
-                        ctx.Entry(instance).State = EntityState.Modified;
-                        await ctx.SaveChangesAsync();
-
-                        break;
-                    }
-                case Stage.HowManyLongboards:
-                    {
-                        if (!Int32.TryParse(update.Message.Text, out var amount))
-                        {
-                            ctx.Entry(instance).State = EntityState.Modified;
-                            await ctx.SaveChangesAsync();
-                            return;
-                        }
-
-                        if (amount <= 0)
-                        {
-                            ctx.Entry(instance).State = EntityState.Modified;
-                            await ctx.SaveChangesAsync();
-                            return;
-                        }
-
-                        instance.BotUserLongBoards.Add(new BotUserLongBoard()
-                        {
-                            BotUser = instance,
-                            Longboard = instance.Pending,
-                            BotUserId = instance.ChatId,
-                            LongboardId = instance.Pending.Id,
-                            Amount = amount
-                        });
-
-                        var msg = await client.SendTextMessageAsync(chatId, 
-                            $"Вы успешно добавили {amount.ToString()} лонгбордов {instance.Pending.Style} стиля катания в корзину!");
-
-                        instance.History.Add(new ChatMessage(msg.MessageId, false));
-                        instance.Pending = null;
-                        instance.Stage = Stage.ShouldContinueAddingToBasket;
-
-                        var msg1 = await SendInfoAboutBasket(client, instance);
-                        var msg2 = await SendShouldContinueAddingToBasket(client, instance);
-
-                        instance.History.AddRange(new[] { msg1, msg2 }.Select(i => new ChatMessage(i.MessageId, false)));
-
-                        ctx.Entry(instance).State = EntityState.Modified;
-                        await ctx.SaveChangesAsync();
-
-                        break;
-                    }
-                case Stage.ShouldContinueAddingToBasket:
-                    {
-                        var result = update.Message.Text;
-
-                        switch (result)
-                        {
-                            case YesText:
-                                {
-                                    var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, "Идет отправка фотографий...");
-                                    var successfulTask = SendLongBoards(client, instance.ChatId, instance.History, instance.BotUserLongBoards.Select(i => i.Longboard));
-
-                                    await Task.WhenAll(waitForPhotosMsgTask, successfulTask);
-
-                                    if (successfulTask.Result)
-                                        instance.Stage = Stage.WhatLongBoard;
-                                    else
-                                    {
-                                        var msg1 = await SendInfoAboutBasket(client, instance);
-                                        var msg2 = await SendShouldContinueAddingToBasket(client, instance);
-
-                                        instance.History.AddRange(new[] { msg1, msg2 }.Select(i => new ChatMessage(i.MessageId, false)));
-
-                                        instance.Stage = Stage.ShouldContinueAddingToBasket;
-                                    }
-                                    instance.History.Add(new ChatMessage(waitForPhotosMsgTask.Result.MessageId, false));
-
-                                    ctx.Entry(instance).State = EntityState.Modified;
-                                    await ctx.SaveChangesAsync();
-
-                                    break;
-                                }
-
-                            case CancelText:
-                                await RestartDialog(instance, client);
-                                ctx.Entry(instance).State = EntityState.Modified;
-                                await ctx.SaveChangesAsync();
-                                break;
-                            case FinishText:
-                                {
-                                    var msg = await client.SendTextMessageAsync(chatId, DeliverOrNotText, replyMarkup: DeliverOrNotKBoard);
-
-                                    instance.Stage = Stage.GettingShouldDeliverToHomeOrNot;
-                                    instance.History.Add(new ChatMessage(msg.MessageId, false));
-                                    await ctx.SaveChangesAsync();
-
-//                                    await OnPurchaseFinishing(instance, client);
-
-                                    break;
-                                }
-                            default:
-                                return;
-                        }
-
-                        break;
-
-                    }
-                case Stage.GettingShouldDeliverToHomeOrNot:
-                    {
-                        var text = update.Message.Text;
-
-                        if (text == DeliverBtnText)
-                        {
-                            instance.Stage = Stage.GettingHomeAdress;
-
-                            var msg = await client.SendTextMessageAsync(chatId, WriteHomeAdressText);
-
-                            instance.History.Add(new ChatMessage(msg.MessageId, false));
-
-                            await ctx.SaveChangesAsync();
-                        }
-                        else
-                        {
-                            var msg = await client.SendTextMessageAsync(chatId, PlaceToTakeLongBoardText);
-
-                            instance.History.Add(new ChatMessage(msg.MessageId, true));
-
-                            await OnPurchaseFinishing(instance, client);
-                        }
-
-                        break;
-                    }
-                case Stage.GettingHomeAdress:
-                    {
-                        var adress = update.Message.Text;
-
-                        await OnPurchaseFinishing(instance, client, adress);
-
-                        break;
-                    }
-
-                case Stage.ShouldRestartDialog:
-                    {
-                        var text = update.Message.Text;
-
-                        if (text == RestartText)
-                        {
-                            await StartNewDialog(instance, client);
-                        }
-                        
-                        ctx.Entry(instance).State = EntityState.Modified;
-                        await ctx.SaveChangesAsync();
-
-                        break;
-                    }
-            }
+            await DoWork();
+            await SaveChanges();
         }
 
-        private async Task OnPurchaseFinishing(BotUser instance, TelegramBotClient client, string additionalInfoForAdmin = "")
+        private static async Task AskToTypeAdressToDeliver(TelegramBotClient client, long chatId, BotUser instance)
+        {
+            var msg = await client.SendTextMessageAsync(chatId, WriteHomeAdressText);
+
+            instance.History.Add(new ChatMessage(msg.MessageId, false));
+        }
+
+        private static async Task SendPlaceForTakingLBInfo(TelegramBotClient client, long chatId, BotUser instance)
+        {
+            var msg = await client.SendTextMessageAsync(chatId, PlaceToTakeLongBoardText);
+
+            instance.History.Add(new ChatMessage(msg.MessageId, true));
+        }
+
+        private static async Task AskAboutDelivery(TelegramBotClient client, long chatId, IList<ChatMessage> history)
+        {
+            var msg = await client.SendTextMessageAsync(
+                chatId,
+                DeliverOrNotText,
+                replyMarkup: DeliverOrNotKBoard);
+
+            history.Add(new ChatMessage(msg.MessageId, false));
+        }
+
+        private static async Task<bool> SendNotInBasketLBoards(TelegramBotClient client, long chatId, BotUser instance)
+        {
+            var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, PhotosAreBeingSentText);
+            var thereAreLBsLeftTask =
+                SendLongBoards(
+                    client,
+                    instance.ChatId,
+                    instance.History,
+                    instance.BotUserLongBoards.Select(i => i.Longboard));
+
+            await Task.WhenAll(waitForPhotosMsgTask, thereAreLBsLeftTask);
+
+            instance.History.Add(new ChatMessage(waitForPhotosMsgTask.Result.MessageId, false));
+
+            return thereAreLBsLeftTask.Result;
+        }
+
+        private static async Task AddToBasketAndNotify(TelegramBotClient client, long chatId, BotUser instance, int amount)
+        {
+            var pending = instance.Pending;
+
+            instance.BotUserLongBoards.Add(
+                new BotUserLongBoard
+                {
+                    BotUser = instance,
+                    Longboard = pending,
+                    BotUserId = instance.ChatId,
+                    LongboardId = pending.Id,
+                    Amount = amount
+                });
+
+            var reportText = Format(AddedToBasketNotificationText, amount, pending.Style);
+            var msg = await client.SendTextMessageAsync(chatId, reportText);
+            instance.History.Add(new ChatMessage(msg.MessageId, false));
+        }
+
+        private static async Task AskIfShouldContinueAddingToBasket(TelegramBotClient client, BotUser instance)
+        {
+            instance.Pending = null;
+
+            var msg1 = await SendInfoAboutBasket(client, instance);
+            var msg2 = await SendShouldContinueAddingToBasket(client, instance);
+
+            instance.History.AddRange(new[] { msg1, msg2 }.Select(i => new ChatMessage(i.MessageId, false)));
+        }
+
+        private static async Task AskToTypeAmountOfLBoards(TelegramBotClient client, long chatId, BotUser instance)
+        {
+            var style = instance.Pending.Style;
+            var msg = await client
+                .SendTextMessageAsync(chatId,
+                Format(AskingToEnterAmountOfLBText, style));
+
+            instance.History.Add(new ChatMessage(msg.MessageId, false));
+        }
+
+        private async Task SendInfoAboutLongboard(TelegramBotClient client, long chatId, string text, BotUser instance)
+        {
+            var lb = await ctx.Longboards.FirstAsync(i => i.Style == text);
+
+            instance.Pending = lb;
+
+            await SendInfoAbout(lb, instance, client);
+            var msgShouldAddToKBoard = await SendShouldAddToBasketKeyboard(client, chatId, text);
+
+            instance.History.Add(new ChatMessage(msgShouldAddToKBoard.MessageId, false));
+        }
+
+        private static async Task SendAllLongboards(TelegramBotClient client, Message message, long chatId, BotUser instance)
+        {
+            var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, PhotosAreBeingSentText);
+            var photosTask = SendLongBoards(client, message.Chat.Id, instance.History);
+
+            await Task.WhenAll(waitForPhotosMsgTask, photosTask);
+
+            instance.History.Add(new ChatMessage(waitForPhotosMsgTask.Result.MessageId, false));
+        }
+
+        private static async Task UpdatePhoneInfo(TelegramBotClient client, Message message, DbSet<BotUser> storage, BotUser instance)
+        {
+            var msgUpdate = await UpdateUsersPhoneAndUsername(client, message, storage);
+            instance.History.Add(new ChatMessage(msgUpdate.MessageId, false));
+        }
+
+        private static async Task AskToEnterCorrectPhone(TelegramBotClient client, long chatId, BotUser instance)
+        {
+            var msg = await client.SendTextMessageAsync(chatId, EnterCorrectPhoneText);
+
+            instance.History.Add(new ChatMessage(msg.MessageId, false));
+        }
+
+        private static async Task UpdateNameAndAskPhone(TelegramBotClient client, Message message, DbSet<BotUser> storage, BotUser instance)
+        {
+            var msg2 = await UpdateUsersNameAndUsername(client, message, storage);
+            var msg1 = await client.AskPhone(message.Chat.Id, !IsNullOrWhiteSpace(message.Chat.Username));
+
+            instance.History.AddRange(new[] { msg1, msg2 }.Select(i => new ChatMessage(i.MessageId, false))); // simplify
+        }
+
+        private static async Task AskToEnterCorrectName(TelegramBotClient client, BotUser instance, long chatId)
+        {
+            var msg = await client.SendTextMessageAsync(chatId, EnterCorrectNameText);
+            instance.History.Add(new ChatMessage(msg.MessageId, false));
+        }
+
+        private static async Task GreetAndAskName(TelegramBotClient client, long chatId, BotUser instance)
+        {
+            var msg2 = await client.SendStickerAsync(chatId, "CAADAgADKwcAAmMr4gmfxHm1DmV88gI");
+            var msg1 = await client.SendTextMessageAsync(chatId, GreetingText);
+            var msg = await client.AskName(chatId);
+
+            instance.History.Add(new ChatMessage(msg.MessageId, false));
+            instance.History.Add(new ChatMessage(msg1.MessageId, false));
+            instance.History.Add(new ChatMessage(msg2.MessageId, false));
+        }
+
+        private static async Task ReloadUserChat(TelegramBotClient client, BotUser instance)
+        {
+            await ClearHistory(instance, client, deleteAll: true);
+
+            instance.Pending = null;
+            instance.BotUserLongBoards.Clear();
+            instance.Stage = Stage.AskingName;
+        }
+
+        private async Task OnPurchaseFinishing(BotUser instance, TelegramBotClient client, string adressToDeliver = null)
         {
             var chatId = instance.ChatId;
 
@@ -392,7 +399,8 @@ namespace LongBoardsBot.Models
                 $"{Environment.NewLine}" +
                 $"Имя: {name}, Телефон: {phone}" +
                 Environment.NewLine +
-                additionalInfoForAdmin;
+                $"{(adressToDeliver != null ? "Адрес для доставки:" : "Заберет сам")} {adressToDeliver}";
+
             var msgToUser = // TODO
                 $"Вы купили {lbrds}. Стоимость = {cost.ToString()} "; // price in 
 

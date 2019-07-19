@@ -9,7 +9,6 @@ namespace LongBoardsBot.Models.Entities
     {
         public long ChatId { get; set; }
 
-        [Required]
         public string Name { get; set; }
 
         public string Phone { get; set; }

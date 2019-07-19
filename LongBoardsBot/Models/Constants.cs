@@ -31,6 +31,17 @@ namespace LongBoardsBot.Models
         public const string TakeMySelfBtnText = "Заберу сам";
         public const string WriteHomeAdressText = @"Напишите свой адрес для доставки";
         public const string PlaceToTakeLongBoardText = @"Адрес для получения лонгборда: ст. метро защитников украины, рэббит кофе";
+        public const string EnterCorrectNameText = @"Введите, пожалуйста, настоящее имя для дальнейшего общения!";
+        public const string EnterCorrectPhoneText = @"Вы ввели некорректный номер. Ввведите номер, начинающийся на +380...";
+        public const string RestartCommand = @"/restart";
+        public const string PhotosAreBeingSentText = @"Идет отправка фотографий...";
+        public const string AskingToEnterAmountOfLBText = 
+            @"Вы собираетесь добавить лонгборды {0} стиля катания в корзину. Укажите количество"; // 0 -> style of lboard
+        public const string AddedToBasketNotificationText = 
+            @"Вы успешно добавили {0} лонгбордов {1} стиля катания в корзину!"; // 0 -> amount; 1 -> style of lboard
+
+        public const string NameRegexp = @"^[а-яА-Яa-zA-Z][а-яa-z]*$";
+        public const string PhoneRegexp = @"^\+?3?8?(0[5-9][0-9]\d{7})$";
 
         public static readonly ReplyKeyboardMarkup AllLBkboard; // keyboard for all longboards
         public static readonly FileInfo[] AllLBImages;
