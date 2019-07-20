@@ -112,6 +112,7 @@ namespace LongBoardsBot.Models
                 }
                 catch (ApiRequestException)
                 {
+                    //list.Remove(elem);
                 }
             }
 

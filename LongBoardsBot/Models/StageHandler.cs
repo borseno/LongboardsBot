@@ -65,7 +65,10 @@ namespace LongBoardsBot.Models
 
                 if (text == RestartCommand)
                 {
-                    await ReloadUserChat(client, instance);
+                    if (!absent)
+                    {
+                        await ReloadUserChat(client, instance);
+                    }
                 }
 
                 switch (instance.Stage)
