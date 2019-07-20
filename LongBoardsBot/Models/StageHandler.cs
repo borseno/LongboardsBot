@@ -45,8 +45,9 @@ namespace LongBoardsBot.Models
             var chatId = message.Chat.Id;
             var text = message.Text;
             var instance = await includedQuery.FirstOrDefaultAsync(i => i.ChatId == chatId);
+            var notInDb = instance == null;
 
-            if (instance == null)
+            if (notInDb)
             {
                 instance = new BotUser
                 {
@@ -57,7 +58,7 @@ namespace LongBoardsBot.Models
                 };
 
                 storage.Add(instance);
-                await ctx.SaveChangesAsync(); // test removing this line, my bet: shouldn't make a difference
+                //await ctx.SaveChangesAsync();
             }
 
             async Task DoWork()
@@ -76,9 +77,6 @@ namespace LongBoardsBot.Models
                             await GreetAndAskName(client, chatId, instance);
 
                             instance.Stage = Stage.GettingName;
-
-                            ctx.Entry(instance).State = EntityState.Modified;
-                            await ctx.SaveChangesAsync();
 
                             break;
                         }
@@ -219,7 +217,11 @@ namespace LongBoardsBot.Models
             }
             async Task SaveChanges()
             {
-                ctx.Entry(instance).State = EntityState.Modified;
+                if (!notInDb)
+                {
+                    ctx.Entry(instance).State = EntityState.Modified;
+                }
+
                 await ctx.SaveChangesAsync();
             }
 
