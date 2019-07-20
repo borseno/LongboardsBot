@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using LongBoardsBot.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -38,7 +39,18 @@ namespace LongBoardsBot.Controllers
                 if (update.Message.Chat.Id == AdminGroupChatId)
                     return Ok();
 
-                await handler.HandleUpdate(bot, update);
+                if (update.Message.Photo != null)
+                {
+                    var id = update.Message.Photo.First().FileId;
+
+                    var t2 = bot.SendTextMessageAsync(update.Message.Chat.Id, id);
+
+                    await Task.WhenAll(t2);
+                }
+                else
+                {
+                    await handler.HandleUpdate(bot, update);
+                }
 
                 return Ok();
             }

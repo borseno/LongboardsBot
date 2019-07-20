@@ -13,7 +13,7 @@
         ShouldContinueAddingToBasket = 5,
         ShouldRestartDialog = 6,
         HowManyLongboards = 7,
-        GettingShouldDeliverToHomeOrNot,
-        GettingHomeAdress
+        GettingShouldDeliverToHomeOrNot = 8,
+        GettingHomeAdress = 9
     }
 }

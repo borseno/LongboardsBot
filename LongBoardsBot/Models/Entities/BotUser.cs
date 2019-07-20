@@ -1,7 +1,5 @@
-﻿using LongBoardsBot.Models.Entities;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
 
 namespace LongBoardsBot.Models.Entities
 {
@@ -23,8 +21,5 @@ namespace LongBoardsBot.Models.Entities
         public LongBoard Pending { get; set; }
 
         public IList<ChatMessage> History { get; set; }
-
-        public List<LongBoard> GetBasket()
-            => BotUserLongBoards.Select(i => i.Longboard).ToList();
     }
 }

@@ -2,7 +2,7 @@
 
 namespace LongBoardsBot.Models.Entities
 {
-    public class ChatMessage
+    public class ChatMessage : IChatMessage
     {
         public ChatMessage(int msgId, bool ignoreDelete)
         {

@@ -10,14 +10,16 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using Telegram.Bot.Types.ReplyMarkups;
 using LongBoardsBot.Helpers;
-using Microsoft.EntityFrameworkCore;
 using LongBoardsBot.Models.Entities;
 using Telegram.Bot.Exceptions;
+using static System.String;
 
 namespace LongBoardsBot.Models
 {
     internal static class Functions
     {
+        private const string IdsNoMatchMessage = "Chat ids dont match";
+
         /// <summary>
         /// <para>1. Sends photos and text about board</para>
         /// <para>2. Adds photos and text history to the user</para>
@@ -28,23 +30,38 @@ namespace LongBoardsBot.Models
         /// <returns></returns>
         public static async Task SendInfoAbout(LongBoard board, BotUser user, TelegramBotClient client)
         {
+            var lbInfoPatternTask = Texts.GetLongBoardInfoText();
+
             var chatId = user.ChatId;
             var info = GetInfo(board.Style, BoardsDirectory);
-            var textFile = info.First(i => i.Name == TextFileName);
-            var photos = info.Where(i => i.Extension == ImageExtension);
+            var textFile = info.First(i => i.Name == LBInfoFileName);
 
-            var textTask = FileExtensions.ReadAllLinesAsync(textFile.FullName);
-            var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, "Идет отправка фотографий...");
-            var photosMsgTask = SendPhotos(chatId, client, photos);
+            var textTask = FileExtensions.ReadAllTextAsync(textFile.FullName);
+            var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, PhotosAreBeingSentText);
+            var photosMsgTask = SendLBExistingPhotos(chatId, client, board.Style);
 
-            await Task.WhenAll(waitForPhotosMsgTask, photosMsgTask, textTask);
+            await Task.WhenAll(waitForPhotosMsgTask, photosMsgTask, textTask, lbInfoPatternTask);
 
-            var toSend = $"Цена: {board.Price}" + Environment.NewLine + textTask.Result;
+            var toSend = Format(lbInfoPatternTask.Result, board.Price, textTask.Result);
             var textMsg = await client.SendTextMessageAsync(chatId, toSend);
 
-            user.History.AddRange(photosMsgTask.Result.Select(i => new ChatMessage(i.MessageId, false)));
-            user.History.Add(new ChatMessage(textMsg.MessageId, false));
-            user.History.Add(new ChatMessage(waitForPhotosMsgTask.Result.MessageId, false));
+            user.History.AddMessages(photosMsgTask.Result, false);
+            user.History.AddMessage(textMsg, false);
+            user.History.AddMessage(waitForPhotosMsgTask.Result, false);
+        }
+
+        public static Task<Message> SendInfoAboutBasket(TelegramBotClient client, BotUser user)
+        {
+            var text = Format(InfoAboutBasket, Join(ElementsSeparator, user.BotUserLongBoards), user.BotUserLongBoards.GetCost());
+
+            return client.SendTextMessageAsync(user.ChatId, text);
+        }
+
+        public static Task<Message> SendShouldAddToBasketKeyboard(TelegramBotClient client, long chatId, string chosen)
+        {
+            var text = Format(ConfirmAddingLBText, chosen);
+
+            return client.SendTextMessageAsync(chatId, text, replyMarkup: AddToBasketOrNotKBoard);
         }
 
         /// <summary>
@@ -55,40 +72,9 @@ namespace LongBoardsBot.Models
         /// <param name="client"></param>
         /// <param name="neededFiles"></param>
         /// <returns></returns>
-        public static async Task<Message[]> SendPhotos(long chatId, TelegramBotClient client, IEnumerable<FileInfo> neededFiles)
+        public static Task<Message[]> SendPhotos(long chatId, TelegramBotClient client, IEnumerable<FileInfo> neededFiles)
         {
-            var count = neededFiles.Count();
-            var photos = new List<InputMediaPhoto>(count); // what if more than 10 photos? TODO!
-            var streams = new List<MemoryStream>(count);
-
-            try
-            {
-                foreach (var i in neededFiles)
-                {
-                    using (var bitmap = new Bitmap(i.FullName)) // critical change here
-                    {
-                        var stream = new MemoryStream();
-                        bitmap.Save(stream, ImageFormat.Jpeg);
-                        stream.Position = 0;
-
-                        var nameWithoutExt = i.NameWithoutExt();
-                        var photo = new InputMediaPhoto(new InputMedia(stream, nameWithoutExt));
-
-                        photos.Add(photo);
-                        streams.Add(stream);
-                    }
-                }
-                var messages = await client.SendMediaGroupAsync(chatId, photos);
-
-                return messages;
-            }
-            finally
-            {
-                foreach (var i in streams)
-                {
-                    i?.Dispose();
-                }
-            }
+            return SendAllLBExistingPhotos(chatId, client, neededFiles);
         }
 
         /// <summary>
@@ -120,13 +106,12 @@ namespace LongBoardsBot.Models
                 {
                     if (!elem.IgnoreDelete || deleteAll)
                     {
-                        deleteTasks.Add(client.DeleteMessageAsync(chatId, elem.MessageId));
                         list.RemoveAt(i);
+                        deleteTasks.Add(client.DeleteMessageAsync(chatId, elem.MessageId));
                     }
                 }
                 catch (ApiRequestException)
                 {
-                    list.Remove(elem);
                 }
             }
 
@@ -148,6 +133,7 @@ namespace LongBoardsBot.Models
             await ClearHistory(instance, client);
             await StartNewDialog(instance, client);
         }
+
         /// <summary>
         /// <para>1. Sets entity's stage to ProcessingLongboardsKeyboardInput</para>
         /// <para>2. Sends longboards keyboardand asks to choose longboard</para>
@@ -159,33 +145,23 @@ namespace LongBoardsBot.Models
         /// <returns></returns>
         public static async Task StartNewDialog(BotUser instance, TelegramBotClient client)
         {
+            instance.Stage = Stage.WhatLongBoard;
+
             var chatId = instance.ChatId;
 
-            var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, "Идет отправка фотографий...");
+            var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, PhotosAreBeingSentText);
             var sendingLongBoardsTask = SendLongBoards(client, chatId, instance.History);
 
-            await Task.WhenAll(waitForPhotosMsgTask, sendingLongBoardsTask);
-
-            instance.History.Add(new ChatMessage(waitForPhotosMsgTask.Result.MessageId, false));
             instance.BotUserLongBoards.Clear();
             instance.Pending = null;
 
-            instance.Stage = Stage.WhatLongBoard;
+            await Task.WhenAll(waitForPhotosMsgTask, sendingLongBoardsTask);
 
+            instance.History.AddMessage(waitForPhotosMsgTask.Result, false);
         }
 
         public static Task<Message> SendShouldContinueAddingToBasket(TelegramBotClient client, BotUser instance)
-        {
-            var text = $"Вы хотите продолжить покупки?";
-
-            var btnYes = new KeyboardButton(YesText);
-            var btnCancel = new KeyboardButton(CancelText);
-            var btnFinish = new KeyboardButton(FinishText);
-
-            var keyboard = new ReplyKeyboardMarkup(new[] { btnYes, btnCancel, btnFinish }, true, true);
-
-            return client.SendTextMessageAsync(instance.ChatId, text, replyMarkup: keyboard);
-        }
+            => client.SendTextMessageAsync(instance.ChatId, WantToContinuePurchasingText, replyMarkup: ContinuePurchasingOrNotKBoard);
 
         public static async Task<bool> SendLongBoards(TelegramBotClient client, long chatId, IList<ChatMessage> msgStorage,
             IEnumerable<LongBoard> boardsToIgnore = null)
@@ -193,97 +169,47 @@ namespace LongBoardsBot.Models
             if (boardsToIgnore == null)
                 boardsToIgnore = Enumerable.Empty<LongBoard>();
 
-            var allFiles = AllLBImages;
-            var neededfiles = allFiles.Where(i => !boardsToIgnore.Any(j => j.Style == i.NameWithoutExt())).ToArray();
-            var success = neededfiles.Length >= 1;
+            var neededFiles = AllLBs.Where(i => !boardsToIgnore.Any(j => j.Style == i.NameWithoutExt())).ToArray();
+            var success = neededFiles.Length >= 1;
 
             if (!success)
             {
-                var msg1 = await client.SendTextMessageAsync(chatId, "Больше лонгбордов нет! 😌");
-                msgStorage.Add(new ChatMessage(msg1.MessageId, false));
+                var msg1 = await client.SendTextMessageAsync(chatId, NoMoreStylesText);
+                msgStorage.AddMessage(msg1, false);
                 return success;
             }
 
-            var photos = new List<InputMediaPhoto>(neededfiles.Length); // what if more than 10 photos? TODO!
-            var streams = new List<MemoryStream>(neededfiles.Length);
-            var buttons = new List<KeyboardButton>(neededfiles.Length);
+            var msgsTask = SendPhotos(chatId, client, neededFiles);
+            var buttons = GetButtons(neededFiles).ToArray();
 
-            // init photos, streams (for photos), buttons
-            foreach (var i in neededfiles)
-            {
-                using (var bitmap = new Bitmap(i.FullName))
-                {
-                    var stream = new MemoryStream();
-                    bitmap.Save(stream, ImageFormat.Jpeg);
-                    stream.Position = 0;
-
-                    var nameWithoutExt = i.NameWithoutExt();
-                    var photo = new InputMediaPhoto(new InputMedia(stream, nameWithoutExt));
-
-                    photos.Add(photo);
-                    streams.Add(stream);
-                    buttons.Add(new KeyboardButton(nameWithoutExt));
-                }
-            }
-
-            // after buttons and photos are inited, we can init keyboard (cuz buttons are inited)
             var myReplyMarkup = new ReplyKeyboardMarkup(buttons, resizeKeyboard: true, oneTimeKeyboard: true);
 
-            // send photos
-            var msgs = await client.SendMediaGroupAsync(chatId, photos);
+            await msgsTask;
 
-            // send msg + keyboard
             var msg = await client.SendTextMessageAsync(chatId, ChooseLongBoardText, replyMarkup: myReplyMarkup);
 
-            // now that photos are sent we don't need to keep them in memory anymore
-            streams.ForEach(i => i.Dispose());
-
             // now process the result. Add messages to history.
-            msgStorage.Add(new ChatMessage(msg.MessageId, false));
+            msgStorage.AddMessage(msg, false);
 
-            // if a message contains all longboards
-            if (neededfiles.Length == AllLBImages.Length)
-            {
-                // then add it to history of messages but don't delete it and use in the future
-                msgStorage.AddRange(msgs.Select(i => new ChatMessage(i.MessageId, ignoreDelete: false)));
-            }
-            else // otherwise, don't use in the future
-            {
-                msgStorage.AddRange(msgs.Select(i => new ChatMessage(i.MessageId, ignoreDelete: false)));
-            }
+            msgStorage.AddMessages(msgsTask.Result, false);
 
             return success;
         }
 
-        public static bool ExistsLongBoard(string text)
+        private static IEnumerable<KeyboardButton> GetButtons(FileInfo[] neededFiles)
         {
-            var directory = BoardsDirectory;
-            var files = directory.GetFiles();
-            var exists = files.Any(i => i.Name.Contains(text));
+            IEnumerable<KeyboardButton> GetButtonsTxt() =>
+            neededFiles
+               .Where(i => i.Extension == TextExtension)
+               .Select(i => new KeyboardButton(i.NameWithoutExt()));
 
-            return exists;
+            IEnumerable<KeyboardButton> GetButtonsJpg() =>
+            neededFiles
+                .Where(i => i.Extension == ImageExtension)
+                .Select(i => new KeyboardButton(i.NameWithoutExt()));
+
+            return GetButtonsTxt();
         }
-
-        public static Task<Message> SendInfoAboutBasket(TelegramBotClient client, BotUser user)
-            => client.SendTextMessageAsync(user.ChatId,
-                "У вас сейчас в корзине: " +
-                string.Join(", ", user
-                    .BotUserLongBoards
-                    .Select(i => $"{i.Longboard.Style}{{{i.Amount}}}"))
-                + $"Итого: {user.BotUserLongBoards.Select(i => i.Longboard.Price * i.Amount).Sum()}"
-                );
-
-        public static Task<Message> SendShouldAddToBasketKeyboard(TelegramBotClient client, long chatId, string chosen)
-        {
-            var text = $"Вы хотите добавить {chosen} лонг борд в корзину?";
-            var btnCancel = new KeyboardButton(CancelText);
-            var btnAdd = new KeyboardButton(AddText);
-
-            var keyboard = new ReplyKeyboardMarkup(new[] { btnCancel, btnAdd }, resizeKeyboard: true, oneTimeKeyboard: true);
-
-            return client.SendTextMessageAsync(chatId, text, replyMarkup: keyboard);
-        }
-
         /// <summary>
         /// <para>1. Changes user's username and phone</para>
         /// <para>2. Sends text message about this action</para>
@@ -292,17 +218,22 @@ namespace LongBoardsBot.Models
         /// <param name="message"></param>
         /// <param name="storage"></param>
         /// <returns></returns>
-        public static async Task<Message> UpdateUsersPhoneAndUsername(TelegramBotClient client, Message message, DbSet<BotUser> storage)
+        public static Task<Message> UpdateUsersPhoneAndUsername(TelegramBotClient client, Message message, BotUser instance)
         {
-            var id = message.Chat.Id;
+            var chatId = instance.ChatId;
+
+            if (message.Chat.Id != chatId)
+            {
+                throw new ArgumentException(IdsNoMatchMessage);
+            }
+
             var phone = message.Text;
-            var username = message.Chat.Username;
-            var entry = await storage.FirstAsync(i => i.ChatId == id);
+            var task = client.SendTextMessageAsync(chatId, Format(AfterPhoneTypedText, phone));
 
-            entry.UserName = username;
-            entry.Phone = phone;
+            instance.UserName = message.Chat.Username;
+            instance.Phone = phone;
 
-            return await client.SendTextMessageAsync(id, $"Вы успешно установили свой номер телефона для обратной связи на {phone}");
+            return task;
         }
 
         /// <summary>
@@ -313,20 +244,95 @@ namespace LongBoardsBot.Models
         /// <param name="message"></param>
         /// <param name="storage"></param>
         /// <returns></returns>
-        public static async Task<Message> UpdateUsersNameAndUsername(TelegramBotClient client, Message message, DbSet<BotUser> storage)
+        public static Task<Message> UpdateUsersNameAndUsername(TelegramBotClient client, Message message, BotUser instance)
         {
-            var id = message.Chat.Id;
+            var chatId = instance.ChatId;
+
+            if (message.Chat.Id != chatId)
+            {
+                throw new ArgumentException(IdsNoMatchMessage);
+            }
+
             var name = message.Text;
-            string phone = null;
-            var username = message.Chat.Username;
 
-            var entry = await storage.FirstAsync(i => i.ChatId == id);
+            var msgTask = client.SendTextMessageAsync(chatId, Format(AfterNameTypedText, name));
 
-            entry.Phone = phone;
-            entry.UserName = username;
-            entry.Name = name;
+            instance.UserName = message.Chat.Username;
+            instance.Name = name;
 
-            return await client.SendTextMessageAsync(id, $"Здравствуйте, {name}");
+            return msgTask;
+        }
+
+        public static bool ExistsLongBoard(string text) => AllLBs.Any(i => i.Name.Contains(text));
+
+        /// <summary>
+        /// sends photos from this server to telegram server and then to the user
+        /// </summary>
+        /// <param name="chatId"></param>
+        /// <param name="client"></param>
+        /// <param name="neededFiles"></param>
+        /// <returns></returns>
+        private static async Task<Message[]> LoadAndSendPhotos(long chatId, TelegramBotClient client, IEnumerable<FileInfo> neededFiles)
+        {
+            var neededFilesArr = neededFiles.Where(i => i.Extension == ImageExtension).ToArray();
+            var count = neededFilesArr.Length;
+            var photos = new List<InputMediaPhoto>(count); // what if more than 10 photos? TODO!
+            var streams = new List<MemoryStream>(count);
+
+            try
+            {
+                foreach (var i in neededFilesArr)
+                {
+                    using (var bitmap = new Bitmap(i.FullName)) // critical change here
+                    {
+                        var stream = new MemoryStream();
+                        bitmap.Save(stream, ImageFormat.Jpeg);
+                        stream.Position = 0;
+
+                        var nameWithoutExt = i.NameWithoutExt();
+                        var photo = new InputMediaPhoto(new InputMedia(stream, nameWithoutExt));
+
+                        photos.Add(photo);
+                        streams.Add(stream);
+                    }
+                }
+
+                return await client.SendMediaGroupAsync(chatId, photos); // has to be awaited here! so that streams dont get disposed before photos are sent
+            }
+            finally
+            {
+                foreach (var i in streams)
+                {
+                    i?.Dispose();
+                }
+            }
+        }
+
+        private static async Task<Message[]> SendAllLBExistingPhotos(long chatId, TelegramBotClient client, IEnumerable<FileInfo> neededFiles)
+        {
+            var neededFilesArr = neededFiles.Where(i => i.Extension == TextExtension).ToArray();
+            var photos = new List<InputMediaPhoto>(neededFilesArr.Length);
+
+            foreach (var i in neededFilesArr)
+            {
+                var token = await FileExtensions.ReadAllTextAsync(i.FullName);
+                photos.Add(new InputMediaPhoto(token));
+            }
+
+            return await client.SendMediaGroupAsync(chatId, photos);
+        }
+
+        private static async Task<Message[]> SendLBExistingPhotos(long chatId, TelegramBotClient client, string style)
+        {
+            var thisLBDirectory = Path.Combine(Directory.GetCurrentDirectory(), LBDirectory, style);
+
+            var target = Path.Combine(thisLBDirectory, PhotosForLBFileName);
+
+            var tokens = await System.IO.File.ReadAllLinesAsync(target);
+
+            var photos = tokens.Select(i => new InputMediaPhoto(i)).ToArray();
+
+            return await client.SendMediaGroupAsync(chatId, photos);
         }
     }
 }

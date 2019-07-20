@@ -29,9 +29,7 @@ namespace TelegramBot_SampleFunctionalities
                 if (chatId == null)
                     return;
 
-                var t3 = Bot.SendPhotoAsync(chatId.Value, "AgADBQADdKkxGxIQiFW-rY6BI6W6AVVb9jIABGO4FGTWH-JGadAFAAEC");
-
-                if (args.Update.Message.Text == "44")
+                if (args.Update.Message.Text == "Id")
                 {
                     await Bot.SendTextMessageAsync(args.Update.Message.Chat.Id, args.Update.Message.Chat.Id.ToString());
                 }
@@ -48,11 +46,22 @@ namespace TelegramBot_SampleFunctionalities
 
                     await Task.WhenAll(t1, t2);
                 }
+                else
+                {
+                    var photos = new InputMediaPhoto[]
+                    {
+                        new InputMediaPhoto( "AgADBQADB6kxG-xlmVWsl9ir-VKfm5y3-TIABJlYPORxEcvGroYAAgI" ),
+                        new InputMediaPhoto( "AgADBQADzKgxG3tImFX6wWIPlEeI24tz-TIABJDfvPsKF95DLiMBAAEC" ),
+                        new InputMediaPhoto( "AgADBQADy6gxG3tImFVnNQXF4jYjEwfy3zIABA-1lPMy85aKqeEFAAEC" )
+                    };
+
+                    var t3 = await Bot.SendMediaGroupAsync(chatId, photos);
+                }
 
                 if (args.Update.Message.Chat.Id == AdminGroupChatId)
                     return;
 
-                await HandleUpdate(Bot, args.Update);
+                //await HandleUpdate(Bot, args.Update);
             };
 
             Console.ReadKey();

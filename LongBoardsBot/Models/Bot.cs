@@ -11,8 +11,8 @@ namespace LongBoardsBot.Models
     internal static class Bot
     {
         private static TelegramBotClient client;
-        private static SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
-        private static Object locker = new Object();
+        private static readonly SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
+        private static readonly Object locker = new Object();
 
         public static TelegramBotClient Get()
         {

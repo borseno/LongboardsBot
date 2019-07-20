@@ -1,7 +1,7 @@
-﻿using System;
+﻿using LongBoardsBot.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace LongBoardsBot.Helpers
 {
@@ -14,5 +14,8 @@ namespace LongBoardsBot.Helpers
                 act(i);
             }
         }
+
+        public static decimal GetCost(this IEnumerable<BotUserLongBoard> elems)
+            => elems.Select(i => i.Longboard.Price * i.Amount).Sum();
     }
 }
