@@ -87,13 +87,14 @@ namespace LongBoardsBot.Models
             => startDirectory.GetDirectories().First(i => i.Name == subDirectory).GetFiles();
 
         /// <summary>
+        /// Can throw ApiRequestException, which should be ignored
         /// <para>1. deletes all not marked as "deleteIgnore" messages that are in the History property of a given instance of BotUser class</para>
         /// <para>2. removes all the deleted messages from the History property of a given instance</para>
         /// </summary>
         /// <param name="instance"></param>
         /// <param name="client"></param>
         /// <returns></returns>
-        public static Task ClearHistory(BotUser instance, TelegramBotClient client, bool deleteAll = false)
+        public static async Task ClearHistory(BotUser instance, TelegramBotClient client, bool deleteAll = false)
         {
             var chatId = instance.ChatId;
             var list = instance.History;
@@ -116,7 +117,14 @@ namespace LongBoardsBot.Models
                 }
             }
 
-            return Task.WhenAll(deleteTasks);
+            try
+            {
+                await Task.WhenAll(deleteTasks);
+            }
+            catch (ApiRequestException)
+            {
+
+            }
         }
 
         /// <summary>
