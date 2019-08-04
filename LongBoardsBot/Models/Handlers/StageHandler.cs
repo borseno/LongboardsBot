@@ -43,6 +43,7 @@ namespace LongBoardsBot.Models.Handlers
                 .Include(i => i.Purchases);
 
             var chatId = message.Chat.Id;
+            var userId = message.From.Id;
             var text = message.Text;
             var instance = await includedQuery.FirstOrDefaultAsync(i => i.ChatId == chatId);
             var absent = instance == null;
@@ -193,14 +194,14 @@ namespace LongBoardsBot.Models.Handlers
                             else if (text == TakeMySelfBtnText)
                             {
                                 await SendPlaceForTakingLBInfo(client, chatId, instance);
-                                await OnPurchaseFinishing(instance, client);
+                                await OnPurchaseFinishing(instance, client, userId);
                             }
 
                             break;
                         }
                     case Stage.GettingHomeAdress:
                         {
-                            await OnPurchaseFinishing(instance, client, text);
+                            await OnPurchaseFinishing(instance, client, userId, text);
 
                             break;
                         }
@@ -400,7 +401,7 @@ namespace LongBoardsBot.Models.Handlers
             return clearHistory;
         }
 
-        private async Task OnPurchaseFinishing(BotUser instance, TelegramBotClient client, string adressToDeliver = null)
+        private async Task OnPurchaseFinishing(BotUser instance, TelegramBotClient client, int userId, string adressToDeliver = null)
         {
             instance.Stage = Stage.ShouldRestartDialog;
 
@@ -415,16 +416,16 @@ namespace LongBoardsBot.Models.Handlers
             instance.LatestPurchase = purchase;
             instance.Purchases.Add(purchase);
 
-            await NotifyAboutPurchase(instance, client, adressToDeliver);
+            await NotifyAboutPurchase(instance, client, adressToDeliver, userId);
 
             await ClearHistory(instance, client);
 
             await AskIfShouldRestartPurchasing(instance, client);
         }
 
-        private static async Task NotifyAboutPurchase(BotUser instance, TelegramBotClient client, string adressToDeliver)
+        private static async Task NotifyAboutPurchase(BotUser instance, TelegramBotClient client, string adressToDeliver, int userId)
         {
-            var toAdmins = NotifyAdmins(instance, client, adressToDeliver);
+            var toAdmins = NotifyAdmins(instance, client, adressToDeliver, userId);
             var toUser = NotifyUser(instance, client);
 
             var finalTextToUserTask = Texts.GetFinalTextToUserAsync();
@@ -452,7 +453,7 @@ namespace LongBoardsBot.Models.Handlers
             return message;
         }
 
-        private static async Task<Message> NotifyAdmins(BotUser instance, TelegramBotClient client, string adressToDeliver)
+        private static async Task<Message> NotifyAdmins(BotUser instance, TelegramBotClient client, string adressToDeliver, int userId)
         {
             var lbrds = Join(ElementsSeparator, instance.Basket);
             var cost = Math.Round(instance.Basket.GetCost(), 2);
@@ -461,7 +462,7 @@ namespace LongBoardsBot.Models.Handlers
             var textToAdmins = await Texts.GetFinalTextToAdminsAsync();
             var textToAdminGroup = Format(
                 textToAdmins, 
-                instance.UserName, 
+                $"[{instance.Name}](tg://user?id={userId})", 
                 lbrds, 
                 cost.ToString(), 
                 instance.Name, 

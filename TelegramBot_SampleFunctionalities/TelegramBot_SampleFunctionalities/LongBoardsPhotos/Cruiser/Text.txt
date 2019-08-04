@@ -1,3 +1,0 @@
-﻿sample info
-Price = 100$
-@CurrencyHandlerBot 100 USD

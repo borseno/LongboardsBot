@@ -3,9 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.28822.285
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LongBoardsBot", "LongBoardsBot\LongBoardsBot.csproj", "{B8F0D879-0903-4826-B825-98378DAF6DAE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LongBoardsBot", "LongBoardsBot\LongBoardsBot.csproj", "{B8F0D879-0903-4826-B825-98378DAF6DAE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{CE688871-C495-4935-8A0F-7CFE19B04944}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests", "Tests\Tests.csproj", "{CE688871-C495-4935-8A0F-7CFE19B04944}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestingMiscalleneousFunctionalitiesOfTelegramBotApi", "TestingMiscalleneousFunctionalitiesOfTelegramBotApi\TestingMiscalleneousFunctionalitiesOfTelegramBotApi.csproj", "{2370671D-D3B8-48CB-8FFD-EE842559ED73}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{CE688871-C495-4935-8A0F-7CFE19B04944}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CE688871-C495-4935-8A0F-7CFE19B04944}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CE688871-C495-4935-8A0F-7CFE19B04944}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2370671D-D3B8-48CB-8FFD-EE842559ED73}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2370671D-D3B8-48CB-8FFD-EE842559ED73}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2370671D-D3B8-48CB-8FFD-EE842559ED73}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2370671D-D3B8-48CB-8FFD-EE842559ED73}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
