@@ -4,14 +4,16 @@ using LongBoardsBot.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace LongBoardsBot.Migrations
 {
     [DbContext(typeof(LongboardistDBContext))]
-    partial class LongboardistDBContextModelSnapshot : ModelSnapshot
+    [Migration("20190804075202_AddedButtonAboutDeliveryForAdmins")]
+    partial class AddedButtonAboutDeliveryForAdmins
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -82,24 +84,6 @@ namespace LongBoardsBot.Migrations
                     b.ToTable("ChatMessage");
                 });
 
-            modelBuilder.Entity("LongBoardsBot.Models.Entities.Comment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
-
-                    b.Property<long>("AuthorChatId");
-
-                    b.Property<string>("Data")
-                        .IsRequired();
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AuthorChatId");
-
-                    b.ToTable("Comments");
-                });
-
             modelBuilder.Entity("LongBoardsBot.Models.Entities.LongBoard", b =>
                 {
                     b.Property<int>("Id")
@@ -133,18 +117,7 @@ namespace LongBoardsBot.Migrations
 
                     b.HasIndex("BotUserChatId");
 
-                    b.ToTable("Purchases");
-                });
-
-            modelBuilder.Entity("LongBoardsBot.Models.Entities.UserStatistics", b =>
-                {
-                    b.Property<long>("BotUserId");
-
-                    b.Property<int>("Age");
-
-                    b.HasKey("BotUserId");
-
-                    b.ToTable("UserStatistics");
+                    b.ToTable("Purchase");
                 });
 
             modelBuilder.Entity("LongBoardsBot.Models.BotUserLongBoard", b =>
@@ -183,27 +156,11 @@ namespace LongBoardsBot.Migrations
                         .OnDelete(DeleteBehavior.Cascade);
                 });
 
-            modelBuilder.Entity("LongBoardsBot.Models.Entities.Comment", b =>
-                {
-                    b.HasOne("LongBoardsBot.Models.Entities.BotUser", "Author")
-                        .WithMany("Comments")
-                        .HasForeignKey("AuthorChatId")
-                        .OnDelete(DeleteBehavior.Cascade);
-                });
-
             modelBuilder.Entity("LongBoardsBot.Models.Entities.Purchase", b =>
                 {
                     b.HasOne("LongBoardsBot.Models.Entities.BotUser")
                         .WithMany("Purchases")
                         .HasForeignKey("BotUserChatId");
-                });
-
-            modelBuilder.Entity("LongBoardsBot.Models.Entities.UserStatistics", b =>
-                {
-                    b.HasOne("LongBoardsBot.Models.Entities.BotUser", "BotUser")
-                        .WithOne("StatisticsInfo")
-                        .HasForeignKey("LongBoardsBot.Models.Entities.UserStatistics", "BotUserId")
-                        .OnDelete(DeleteBehavior.Cascade);
                 });
 #pragma warning restore 612, 618
         }

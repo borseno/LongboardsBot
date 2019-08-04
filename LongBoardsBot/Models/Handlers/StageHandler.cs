@@ -11,10 +11,11 @@ using System.Text.RegularExpressions;
 using LongBoardsBot.Helpers;
 using Microsoft.EntityFrameworkCore;
 using LongBoardsBot.Models.Entities;
+using Telegram.Bot.Types.ReplyMarkups;
 
-namespace LongBoardsBot.Models
+namespace LongBoardsBot.Models.Handlers
 {
-    public class StageHandler
+    public partial class StageHandler
     {
         private readonly LongboardistDBContext ctx;
 
@@ -23,23 +24,23 @@ namespace LongBoardsBot.Models
             this.ctx = ctx;
         }
 
-        public async Task HandleUpdate(TelegramBotClient client, Update update)
+        public async Task HandleMessage(TelegramBotClient client, Message message)
         {
-            var message = update.Message;
-
             if (message == null)
                 return;
 
             var storage = ctx.BotUsers;
 
             var includedQuery = storage
-                .Include(i => i.BotUserLongBoards)
+                .Include(i => i.Basket)
                     .ThenInclude(j => j.Longboard)
-                .Include(i => i.BotUserLongBoards)
+                .Include(i => i.Basket)
                     .ThenInclude(j => j.BotUser)
                 .Include(i => i.Pending)
                 .Include(i => i.History)
-                    .ThenInclude(j => j.User);
+                    .ThenInclude(j => j.User)
+                .Include(i => i.LatestPurchase)
+                .Include(i => i.Purchases);
 
             var chatId = message.Chat.Id;
             var text = message.Text;
@@ -125,7 +126,7 @@ namespace LongBoardsBot.Models
                     case Stage.ShouldAddLongboardToBasket:
                         {
                             // cancelling with 0 lb chosen
-                            if (text == CancelText && instance.BotUserLongBoards.Count == 0)
+                            if (text == CancelText && instance.Basket.Count == 0)
                             {
                                 await RestartPurchasing(instance, client);
                             }
@@ -144,7 +145,7 @@ namespace LongBoardsBot.Models
                         }
                     case Stage.HowManyLongboards:
                         {
-                            if (Int32.TryParse(text, out var amount) && amount > 0)
+                            if (int.TryParse(text, out var amount) && amount > 0)
                             {
                                 instance.Stage = Stage.ShouldContinueAddingToBasket;
                                 await AddToBasketAndNotify(client, instance, amount);
@@ -212,6 +213,11 @@ namespace LongBoardsBot.Models
 
                             break;
                         }
+                    case Stage.ProcessingShouldReview:
+                        {
+                            // TODO...
+                            break;
+                        }
                 }
             }
             async Task SaveChanges()
@@ -227,7 +233,10 @@ namespace LongBoardsBot.Models
             await DoWork();
             await SaveChanges();
         }
+    }
 
+    public partial class StageHandler
+    {
         private static async Task<Message> AskToTypeAdressToDeliver(TelegramBotClient client, long chatId, BotUser instance)
         {
             var msg = await client.SendTextMessageAsync(chatId, WriteHomeAdressText);
@@ -265,7 +274,7 @@ namespace LongBoardsBot.Models
                     client,
                     instance.ChatId,
                     instance.History,
-                    instance.BotUserLongBoards.Select(i => i.Longboard));
+                    instance.Basket.Select(i => i.Longboard));
 
             await Task.WhenAll(waitForPhotosMsgTask, thereAreLBsLeftTask);
 
@@ -281,7 +290,7 @@ namespace LongBoardsBot.Models
             var reportText = Format(AddedToBasketNotificationText, amount, pending.Style);
             var msgTask = client.SendTextMessageAsync(chatId, reportText);
 
-            instance.BotUserLongBoards.Add(
+            instance.Basket.Add(
                 new BotUserLongBoard
                 {
                     BotUser = instance,
@@ -386,7 +395,7 @@ namespace LongBoardsBot.Models
             var clearHistory = ClearHistory(instance, client, deleteAll: true);
 
             instance.Pending = null;
-            instance.BotUserLongBoards.Clear();
+            instance.Basket.Clear();
 
             return clearHistory;
         }
@@ -394,6 +403,17 @@ namespace LongBoardsBot.Models
         private async Task OnPurchaseFinishing(BotUser instance, TelegramBotClient client, string adressToDeliver = null)
         {
             instance.Stage = Stage.ShouldRestartDialog;
+
+            var purchase = new Purchase
+            {
+                Guid = Guid.NewGuid(),
+                Basket = instance.Basket,
+                Cost = instance.Basket.GetCost(),
+                Delivered = false
+            };
+
+            instance.LatestPurchase = purchase;
+            instance.Purchases.Add(purchase);
 
             await NotifyAboutPurchase(instance, client, adressToDeliver);
 
@@ -404,27 +424,68 @@ namespace LongBoardsBot.Models
 
         private static async Task NotifyAboutPurchase(BotUser instance, TelegramBotClient client, string adressToDeliver)
         {
-            var readFinalMsgToUserTask = Texts.GetFinalTextToUserAsync();
-            var readFinalMsgToAdminTask = Texts.GetFinalTextToAdminsAsync();
+            var toAdmins = NotifyAdmins(instance, client, adressToDeliver);
+            var toUser = NotifyUser(instance, client);
 
-            var lbrds = Join(ElementsSeparator, instance.BotUserLongBoards);
-            var cost = Math.Round(instance.BotUserLongBoards.GetCost(), 2);
-            var adressInfo = adressToDeliver == null ? NoDeliveryInfo : adressToDeliver;
+            var finalTextToUserTask = Texts.GetFinalTextToUserAsync();
 
-            var textToAdminGroup = Format(await readFinalMsgToAdminTask, instance.UserName, lbrds, cost.ToString(), instance.Name, instance.Phone, adressInfo);
-            var textToUser = Format(UserPurchaseInfoText, lbrds, cost.ToString()); // TODO: price in USD UAH
+            await Task.WhenAll(finalTextToUserTask, toUser, toAdmins);
 
-            var msgUserTask = client.SendTextMessageAsync(instance.ChatId, textToUser);
-            var msgAdminTask = client.SendTextMessageAsync(AdminGroupChatId, textToAdminGroup);
+            var finalMsgToUser = await client.SendTextMessageAsync(instance.ChatId, finalTextToUserTask.Result);
 
-            await readFinalMsgToUserTask;
-            await msgUserTask;
+            instance.History.AddMessages(new[] { toUser.Result, finalMsgToUser }, true);
+        }
 
-            var finalMsgToUser = client.SendTextMessageAsync(instance.ChatId, readFinalMsgToUserTask.Result);
+        private static async Task<Message> NotifyUser(BotUser instance, TelegramBotClient client)
+        {
+            var lbrds = Join(ElementsSeparator, instance.Basket);
+            var cost = Math.Round(instance.Basket.GetCost(), 2);
 
-            await Task.WhenAll(msgAdminTask, finalMsgToUser);
+            var text = Format(
+                UserPurchaseInfoText, 
+                lbrds, 
+                cost.ToString(), 
+                instance.LatestPurchase.Guid.ToStringHashTag()); // TODO: price in USD UAH
 
-            instance.History.AddMessages(new[] { msgUserTask.Result, finalMsgToUser.Result }, true);
+            var message = await client.SendTextMessageAsync(instance.ChatId, text);
+
+            return message;
+        }
+
+        private static async Task<Message> NotifyAdmins(BotUser instance, TelegramBotClient client, string adressToDeliver)
+        {
+            var lbrds = Join(ElementsSeparator, instance.Basket);
+            var cost = Math.Round(instance.Basket.GetCost(), 2);
+            var adressInfo = adressToDeliver ?? NoDeliveryInfo;
+
+            var textToAdmins = await Texts.GetFinalTextToAdminsAsync();
+            var textToAdminGroup = Format(
+                textToAdmins, 
+                instance.UserName, 
+                lbrds, 
+                cost.ToString(), 
+                instance.Name, 
+                instance.Phone, 
+                adressInfo, 
+                instance.LatestPurchase.Guid.ToStringHashTag()
+                );
+
+            var inlineKBoard =
+                new InlineKeyboardMarkup(
+                    new[] {
+                        new InlineKeyboardButton
+                        {
+                           Text = DeliveredText, CallbackData = $"{DeliveredData}{instance.LatestPurchase.Guid}"
+                        },
+                        new InlineKeyboardButton
+                        {
+                           Text = CancelDeliveryText, CallbackData = $"{CancelDeliveryData}{instance.LatestPurchase.Guid}"
+                        }
+                    });
+
+            var msg = await client.SendTextMessageAsync(AdminGroupChatId, textToAdminGroup, replyMarkup: inlineKBoard);
+
+            return msg;
         }
 
         private static async Task AskIfShouldRestartPurchasing(BotUser instance, TelegramBotClient client)

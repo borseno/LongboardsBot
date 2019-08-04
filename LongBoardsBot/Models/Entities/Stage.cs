@@ -14,6 +14,7 @@
         ShouldRestartDialog = 6,
         HowManyLongboards = 7,
         GettingShouldDeliverToHomeOrNot = 8,
-        GettingHomeAdress = 9
+        GettingHomeAdress = 9,
+        ProcessingShouldReview = 10
     }
 }

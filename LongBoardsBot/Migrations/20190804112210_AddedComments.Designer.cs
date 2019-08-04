@@ -4,14 +4,16 @@ using LongBoardsBot.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace LongBoardsBot.Migrations
 {
     [DbContext(typeof(LongboardistDBContext))]
-    partial class LongboardistDBContextModelSnapshot : ModelSnapshot
+    [Migration("20190804112210_AddedComments")]
+    partial class AddedComments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -88,7 +90,7 @@ namespace LongBoardsBot.Migrations
                         .ValueGeneratedOnAdd()
                         .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
 
-                    b.Property<long>("AuthorChatId");
+                    b.Property<long?>("AuthorChatId");
 
                     b.Property<string>("Data")
                         .IsRequired();
@@ -187,8 +189,7 @@ namespace LongBoardsBot.Migrations
                 {
                     b.HasOne("LongBoardsBot.Models.Entities.BotUser", "Author")
                         .WithMany("Comments")
-                        .HasForeignKey("AuthorChatId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .HasForeignKey("AuthorChatId");
                 });
 
             modelBuilder.Entity("LongBoardsBot.Models.Entities.Purchase", b =>

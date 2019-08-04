@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using LongBoardsBot.Models;
+using LongBoardsBot.Models.Handlers;
 using Microsoft.AspNetCore.Mvc;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -13,12 +14,14 @@ namespace LongBoardsBot.Controllers
     [ApiController]
     public class MessageController : ControllerBase
     {
-        private readonly StageHandler handler;
+        private readonly StageHandler stageHandler;
+        private readonly CallbackHandler callbackHandler;
         private readonly TelegramBotClient bot;
 
-        public MessageController(StageHandler handler)
+        public MessageController(StageHandler stageHandler, CallbackHandler callbackHandler)
         {
-            this.handler = handler;
+            this.stageHandler = stageHandler;
+            this.callbackHandler = callbackHandler;
             bot = Bot.Get();
         }
 
@@ -33,13 +36,10 @@ namespace LongBoardsBot.Controllers
         {
             try
             {
-                if (update?.Message?.Chat == null)
+                if (update.Message?.Chat?.Id == AdminGroupChatId)
                     return Ok();
 
-                if (update.Message.Chat.Id == AdminGroupChatId)
-                    return Ok();
-
-                if (update.Message.Photo != null)
+                if (update.Message?.Photo != null)
                 {
                     var id = update.Message.Photo.First().FileId;
 
@@ -47,9 +47,13 @@ namespace LongBoardsBot.Controllers
 
                     await Task.WhenAll(t2);
                 }
-                else
+                else if (update.CallbackQuery != null)
                 {
-                    await handler.HandleUpdate(bot, update);
+                    await callbackHandler.HandleCallback(bot, update.CallbackQuery);
+                }
+                else if (update.Message != null)
+                {
+                    await stageHandler.HandleMessage(bot, update.Message);
                 }
 
                 return Ok();

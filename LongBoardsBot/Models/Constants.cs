@@ -73,12 +73,19 @@ namespace LongBoardsBot.Models
             @"Вы собираетесь добавить лонгборды {0} стиля катания в корзину. Укажите количество"; // 0 -> style of lboard
         public const string AddedToBasketNotificationText =
             @"Вы успешно добавили {0} лонгбордов {1} стиля катания в корзину!"; // 0 -> amount; 1 -> style of lboard
-        public const string UserPurchaseInfoText = @"Вы купили {0}. Стоимость = {1}"; // 0 -> lboards + their amounts
+        public const string UserPurchaseInfoText = @"Вы купили {0}. Стоимость: {1}. Номер покупки: {2}"; // 0 -> lboards + their amounts
         public const string AfterNameTypedText = @"Здравствуйте, {0}"; // 0 -> name
         public const string AfterPhoneTypedText = @"Вы успешно установили свой номер телефона для обратной связи на {0}"; // 0 -> phone
         public const string ConfirmAddingLBText = @"Вы хотите добавить {0} лонг борд в корзину?"; // 0 -> longboard
         public const string InfoAboutBasket = @"У вас сейчас в корзине: {0} Итого: {1}"; // 0 -> longboards + their amounts, 1 -> total cost
         public const string LBInBasketInfo = @"{0} ({1})"; // 0 - longboard's style, 1 - amount
+
+        public const string DeliveredText = "Доставили";
+        public const string DeliveredData = "Delivered#";
+
+        public const string CancelDeliveryText = "Отмена";
+        public const string CancelDeliveryData = "CancelDelivery#";
+
     }
 
     static partial class Constants

@@ -1,4 +1,5 @@
 ﻿using LongBoardsBot.Models;
+using LongBoardsBot.Models.Handlers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
@@ -25,6 +26,7 @@ namespace LongBoardsBot
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
 
             services.AddScoped<StageHandler>();
+            services.AddScoped<CallbackHandler>();
             services.AddDbContext<LongboardistDBContext>(o => o.UseSqlServer(connectionString));
         }
 

@@ -52,7 +52,7 @@ namespace LongBoardsBot.Models
 
         public static Task<Message> SendInfoAboutBasket(TelegramBotClient client, BotUser user)
         {
-            var text = Format(InfoAboutBasket, Join(ElementsSeparator, user.BotUserLongBoards), user.BotUserLongBoards.GetCost());
+            var text = Format(InfoAboutBasket, Join(ElementsSeparator, user.Basket), user.Basket.GetCost());
 
             return client.SendTextMessageAsync(user.ChatId, text);
         }
@@ -87,7 +87,7 @@ namespace LongBoardsBot.Models
             => startDirectory.GetDirectories().First(i => i.Name == subDirectory).GetFiles();
 
         /// <summary>
-        /// Can throw ApiRequestException, which should be ignored
+        /// Can throw ApiRequestException, which should be ignored (telegram doesnt allow to delete messages older than 2 days)
         /// <para>1. deletes all not marked as "deleteIgnore" messages that are in the History property of a given instance of BotUser class</para>
         /// <para>2. removes all the deleted messages from the History property of a given instance</para>
         /// </summary>
@@ -161,7 +161,7 @@ namespace LongBoardsBot.Models
             var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, PhotosAreBeingSentText);
             var sendingLongBoardsTask = SendLongBoards(client, chatId, instance.History);
 
-            instance.BotUserLongBoards.Clear();
+            instance.Basket.Clear();
             instance.Pending = null;
 
             await Task.WhenAll(waitForPhotosMsgTask, sendingLongBoardsTask);
