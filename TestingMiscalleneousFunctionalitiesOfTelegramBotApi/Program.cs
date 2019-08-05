@@ -57,7 +57,7 @@ namespace TestingMiscalleneousFunctionalitiesOfTelegramBotApi
                 var text = "a";
                 var start = 1048576;
                 var finish = start * 4;
-
+                var count = 1;
                 var arr = 1048576..1048576 * 4;
 
                 try

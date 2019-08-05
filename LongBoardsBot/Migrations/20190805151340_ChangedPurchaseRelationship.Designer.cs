@@ -4,14 +4,16 @@ using LongBoardsBot.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace LongBoardsBot.Migrations
 {
     [DbContext(typeof(LongboardistDBContext))]
-    partial class LongboardistDBContextModelSnapshot : ModelSnapshot
+    [Migration("20190805151340_ChangedPurchaseRelationship")]
+    partial class ChangedPurchaseRelationship
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -55,8 +57,6 @@ namespace LongBoardsBot.Migrations
                     b.Property<int>("Stage")
                         .ValueGeneratedOnAdd()
                         .HasDefaultValue(0);
-
-                    b.Property<int?>("UserId");
 
                     b.Property<string>("UserName");
 
