@@ -12,6 +12,7 @@ using LongBoardsBot.Helpers;
 using Microsoft.EntityFrameworkCore;
 using LongBoardsBot.Models.Entities;
 using Telegram.Bot.Types.ReplyMarkups;
+using static Telegram.Bot.Types.Enums.ParseMode;
 
 namespace LongBoardsBot.Models.Handlers
 {
@@ -65,12 +66,9 @@ namespace LongBoardsBot.Models.Handlers
             {
                 instance.History.Add(new ChatMessage(message.MessageId, false));
 
-                if (text == RestartCommand)
+                if (text == RestartCommand && !absent)
                 {
-                    if (!absent)
-                    {
-                        await ReloadUserChat(client, instance);
-                    }
+                    await ReloadUserChat(client, instance);
                 }
 
                 switch (instance.Stage)
@@ -221,14 +219,14 @@ namespace LongBoardsBot.Models.Handlers
                         }
                 }
             }
-            async Task SaveChanges()
+            Task SaveChanges()
             {
                 if (!absent)
                 {
                     ctx.Entry(instance).State = EntityState.Modified;
                 }
 
-                await ctx.SaveChangesAsync();
+                return ctx.SaveChangesAsync();
             }
 
             await DoWork();
@@ -484,7 +482,7 @@ namespace LongBoardsBot.Models.Handlers
                         }
                     });
 
-            var msg = await client.SendTextMessageAsync(AdminGroupChatId, textToAdminGroup, replyMarkup: inlineKBoard);
+            var msg = await client.SendTextMessageAsync(AdminGroupChatId, textToAdminGroup, Markdown, replyMarkup: inlineKBoard);
 
             return msg;
         }

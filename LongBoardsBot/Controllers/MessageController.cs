@@ -22,7 +22,7 @@ namespace LongBoardsBot.Controllers
         {
             this.stageHandler = stageHandler;
             this.callbackHandler = callbackHandler;
-            bot = Bot.Get();
+            bot = Bot.Get(); // todo - inject singleton
         }
 
         [HttpGet]

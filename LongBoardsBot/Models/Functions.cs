@@ -13,6 +13,7 @@ using LongBoardsBot.Helpers;
 using LongBoardsBot.Models.Entities;
 using Telegram.Bot.Exceptions;
 using static System.String;
+using static System.IO.File;
 
 namespace LongBoardsBot.Models
 {
@@ -36,7 +37,7 @@ namespace LongBoardsBot.Models
             var info = GetInfo(board.Style, BoardsDirectory);
             var textFile = info.First(i => i.Name == LBInfoFileName);
 
-            var textTask = FileExtensions.ReadAllTextAsync(textFile.FullName);
+            var textTask = ReadAllTextAsync(textFile.FullName);
             var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, PhotosAreBeingSentText);
             var photosMsgTask = SendLBExistingPhotos(chatId, client, board.Style);
 
@@ -324,7 +325,7 @@ namespace LongBoardsBot.Models
 
             foreach (var i in neededFilesArr)
             {
-                var token = await FileExtensions.ReadAllTextAsync(i.FullName);
+                var token = await ReadAllTextAsync(i.FullName);
                 photos.Add(new InputMediaPhoto(token));
             }
 

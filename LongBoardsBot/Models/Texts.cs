@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Threading.Tasks;
-using static LongBoardsBot.Helpers.FileExtensions;
 using static LongBoardsBot.Models.Constants;
+using static System.IO.File;
 
-namespace LongBoardsBot.Models.Entities
+namespace LongBoardsBot.Models
 {
     static class Texts
     {
@@ -14,5 +14,9 @@ namespace LongBoardsBot.Models.Entities
         public static Task<string> GetLongBoardInfoText() => ReadAllTextAsync(LongboardInfoPatternPath);
 
         public static Task<string> GetGreetingTextAsync() => ReadAllTextAsync(GreetingTextPath);
+
+        public static Task<string> GetDeliveryNotification() => ReadAllTextAsync(DeliveryNotificationPath);
+
+        public static Task<string> GetCancelledOrderingNotificationText() => ReadAllTextAsync(CancelledOrderingNotificationPath);
     }
 }

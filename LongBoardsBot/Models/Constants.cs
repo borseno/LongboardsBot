@@ -23,6 +23,8 @@ namespace LongBoardsBot.Models
 
         public const string GreetingTextPath = TextsDirectory + @"\Greeting.txt";
         public const string FinalMessageToUserPath = TextsDirectory + @"\FinalMessageToUser.txt";
+        public const string DeliveryNotificationPath = TextsDirectory + @"\DeliveryNotification.txt";
+        public const string CancelledOrderingNotificationPath = TextsDirectory + @"\CancelledOrderingNotification.txt";
 
         // 0 -> username; 1 -> list of lboards + their amounts; 2 -> total cost of lboards; 
         // 3 -> Name; 4 -> Phone; 5 -> Info about adress (adress or "Заберет сам")
@@ -46,6 +48,10 @@ namespace LongBoardsBot.Models
 
     static partial class Constants
     {
+        public const string SuccessfullySent = @"Уведомление было успешно отправлено пользователю";
+        public const string SoldMessage = @"ПРОДАНО И ДОСТАВЛЕНО";
+        public const string WantsAddComment = @"Хорошо";
+        public const string NotWantsAddComment = @"Лень)";
         public const string RestartCommand = @"/restart";
         public const string ElementsSeparator = @", ";
         public const string CancelText = "Отменить";
