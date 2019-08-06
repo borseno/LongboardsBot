@@ -9,7 +9,8 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 using static LongBoardsBot.Models.Constants;
 using static System.String;
-using static LongBoardsBot.Models.Texts;
+using static LongBoardsBot.Models.TextsFunctions.Texts;
+using static LongBoardsBot.Models.TextsFunctions.FormattedTexts;
 
 namespace LongBoardsBot.Models.Handlers
 {
@@ -26,13 +27,15 @@ namespace LongBoardsBot.Models.Handlers
         {
             var includedQuery = ctx.Purchases
                     .Include(i => i.Basket)
-                    .ThenInclude(i => i.BotUser);
+                    .ThenInclude(i => i.Longboard)
+                    .Include(i => i.BotUser)
+                    .ThenInclude(i => i.LatestPurchase);
 
             if (query.Data.StartsWith(DeliveredData)) // delivered a longboard...
             {
                 var purchaseId = query.Data.Substring(DeliveredData.Length);
                 var purchase = await includedQuery.FirstAsync(i => i.Guid.ToString() == purchaseId);
-                var user = purchase.Basket.First().BotUser;
+                var user = purchase.BotUser;
 
                 var wantsToSendAReviewOrNotKBoard = new ReplyKeyboardMarkup(
                     new[] {
@@ -40,7 +43,13 @@ namespace LongBoardsBot.Models.Handlers
                         new KeyboardButton(NotWantsAddComment)
                     }, true, true);
 
-                var deliveryNotificationText = await GetDeliveryNotification();
+                var textToAdminGroupTask = GetFormattedFinalTextToAdminsAsync(user, purchase);
+                var deliveryNotificationTextTask = GetDeliveryNotification();
+
+                await Task.WhenAll(textToAdminGroupTask, deliveryNotificationTextTask);
+
+                var textToAdminGroup = textToAdminGroupTask.Result;
+                var deliveryNotificationText = deliveryNotificationTextTask.Result;
 
                 var msgTask = client.SendTextMessageAsync(
                     user.ChatId,
@@ -52,7 +61,7 @@ namespace LongBoardsBot.Models.Handlers
                 var editTask = client.EditMessageTextAsync(
                     query.Message.Chat.Id, 
                     query.Message.MessageId, 
-                    query.Message.Text + Environment.NewLine + SoldMessage,
+                    textToAdminGroup + Environment.NewLine + SoldMessage,
                     Telegram.Bot.Types.Enums.ParseMode.Markdown
                     );
 
@@ -67,7 +76,7 @@ namespace LongBoardsBot.Models.Handlers
             {
                 var purchaseId = query.Data.Substring(CancelDeliveryData.Length);
                 var purchase = await includedQuery.FirstAsync(i => i.Guid.ToString() == purchaseId);
-                var chat = purchase.Basket.First().BotUser.ChatId; // nullreference
+                var chat = purchase.BotUser.ChatId; // nullreference
 
                 var cancelledText = await GetCancelledOrderingNotificationText();
 

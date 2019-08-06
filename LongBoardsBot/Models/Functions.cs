@@ -14,6 +14,7 @@ using LongBoardsBot.Models.Entities;
 using Telegram.Bot.Exceptions;
 using static System.String;
 using static System.IO.File;
+using LongBoardsBot.Models.TextsFunctions;
 
 namespace LongBoardsBot.Models
 {
@@ -162,7 +163,7 @@ namespace LongBoardsBot.Models
             var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, PhotosAreBeingSentText);
             var sendingLongBoardsTask = SendLongBoards(client, chatId, instance.History);
 
-            instance.Basket.Clear();
+            instance.Basket = null;
             instance.Pending = null;
 
             await Task.WhenAll(waitForPhotosMsgTask, sendingLongBoardsTask);

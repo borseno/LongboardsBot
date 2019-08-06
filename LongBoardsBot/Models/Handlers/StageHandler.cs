@@ -13,6 +13,8 @@ using Microsoft.EntityFrameworkCore;
 using LongBoardsBot.Models.Entities;
 using Telegram.Bot.Types.ReplyMarkups;
 using static Telegram.Bot.Types.Enums.ParseMode;
+using static LongBoardsBot.Models.TextsFunctions.FormattedTexts;
+using LongBoardsBot.Models.TextsFunctions;
 
 namespace LongBoardsBot.Models.Handlers
 {
@@ -206,6 +208,7 @@ namespace LongBoardsBot.Models.Handlers
                         }
                     case Stage.GettingHomeAdress:
                         {
+                            
                             await OnPurchaseFinishing(instance, client, text);
 
                             break;
@@ -401,7 +404,7 @@ namespace LongBoardsBot.Models.Handlers
             var clearHistory = ClearHistory(instance, client, deleteAll: true);
 
             instance.Pending = null;
-            instance.Basket.Clear();
+            instance.Basket = null;
 
             return clearHistory;
         }
@@ -413,24 +416,25 @@ namespace LongBoardsBot.Models.Handlers
             var purchase = new Purchase
             {
                 Guid = Guid.NewGuid(),
-                Basket = instance.Basket,
+                Basket = instance.Basket.ToList(), // to list - in order to make a copy
                 Cost = instance.Basket.GetCost(),
-                Delivered = false
+                Delivered = false,
+                AdressToDeliver = adressToDeliver
             };
 
             instance.LatestPurchase = purchase;
             instance.Purchases.Add(purchase);
 
-            await NotifyAboutPurchase(instance, client, adressToDeliver);
+            await NotifyAboutPurchase(instance, client);
 
             await ClearHistory(instance, client);
 
             await AskIfShouldRestartPurchasing(instance, client);
         }
 
-        private static async Task NotifyAboutPurchase(BotUser instance, TelegramBotClient client, string adressToDeliver)
+        private static async Task NotifyAboutPurchase(BotUser instance, TelegramBotClient client)
         {
-            var toAdmins = NotifyAdmins(instance, client, adressToDeliver);
+            var toAdmins = NotifyAdmins(instance, client);
             var toUser = NotifyUser(instance, client);
 
             var finalTextToUserTask = Texts.GetFinalTextToUserAsync();
@@ -458,23 +462,9 @@ namespace LongBoardsBot.Models.Handlers
             return message;
         }
 
-        private static async Task<Message> NotifyAdmins(BotUser instance, TelegramBotClient client, string adressToDeliver)
+        private static async Task<Message> NotifyAdmins(BotUser instance, TelegramBotClient client)
         {
-            var lbrds = Join(ElementsSeparator, instance.Basket);
-            var cost = Math.Round(instance.Basket.GetCost(), 2);
-            var adressInfo = adressToDeliver ?? NoDeliveryInfo;
-
-            var textToAdmins = await Texts.GetFinalTextToAdminsAsync();
-            var textToAdminGroup = Format(
-                textToAdmins, 
-                $"[{instance.Name}](tg://user?id={instance.UserId})", 
-                lbrds, 
-                cost.ToString(), 
-                instance.Name, 
-                instance.Phone, 
-                adressInfo, 
-                instance.LatestPurchase.Guid.ToStringHashTag()
-                );
+            var textToAdminGroup = await GetFormattedFinalTextToAdminsAsync(instance);
 
             var inlineKBoard =
                 new InlineKeyboardMarkup(
@@ -489,9 +479,7 @@ namespace LongBoardsBot.Models.Handlers
                         }
                     });
 
-            var msg = await client.SendTextMessageAsync(AdminGroupChatId, textToAdminGroup, Markdown, replyMarkup: inlineKBoard);
-
-            return msg;
+            return await client.SendTextMessageAsync(AdminGroupChatId, textToAdminGroup, Markdown, replyMarkup: inlineKBoard);
         }
 
         private static async Task AskIfShouldRestartPurchasing(BotUser instance, TelegramBotClient client)

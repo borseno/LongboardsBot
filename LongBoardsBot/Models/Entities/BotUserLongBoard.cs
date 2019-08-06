@@ -7,6 +7,8 @@ namespace LongBoardsBot.Models
 {
     public class BotUserLongBoard
     {
+        public int Id { get; set; }
+
         public long BotUserId { get; set; }
         public int LongboardId { get; set; }
         public LongBoard Longboard { get; set; }

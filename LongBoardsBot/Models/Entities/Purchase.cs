@@ -16,5 +16,7 @@ namespace LongBoardsBot.Models.Entities
         public decimal Cost { get; set; }
 
         public bool Delivered { get; set; }
+
+        public string AdressToDeliver { get; set; }
     }
 }

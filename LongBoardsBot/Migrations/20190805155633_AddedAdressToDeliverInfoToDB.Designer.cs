@@ -4,14 +4,16 @@ using LongBoardsBot.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace LongBoardsBot.Migrations
 {
     [DbContext(typeof(LongboardistDBContext))]
-    partial class LongboardistDBContextModelSnapshot : ModelSnapshot
+    [Migration("20190805155633_AddedAdressToDeliverInfoToDB")]
+    partial class AddedAdressToDeliverInfoToDB
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,23 +23,17 @@ namespace LongBoardsBot.Migrations
 
             modelBuilder.Entity("LongBoardsBot.Models.BotUserLongBoard", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                    b.Property<long>("BotUserId");
+
+                    b.Property<int>("LongboardId");
 
                     b.Property<int>("Amount")
                         .ValueGeneratedOnAdd()
                         .HasDefaultValue(0);
 
-                    b.Property<long>("BotUserId");
-
-                    b.Property<int>("LongboardId");
-
                     b.Property<Guid?>("PurchaseGuid");
 
-                    b.HasKey("Id");
-
-                    b.HasIndex("BotUserId");
+                    b.HasKey("BotUserId", "LongboardId");
 
                     b.HasIndex("LongboardId");
 

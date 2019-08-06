@@ -26,7 +26,11 @@ namespace LongBoardsBot.Models
                 .HasDefaultValue(Stage.AskingName);
 
             blder.Entity<BotUserLongBoard>()
-                .HasKey(bulb => new { bulb.BotUserId, bulb.LongboardId });
+                .HasKey(bulb => bulb.Id);
+
+            blder.Entity<BotUserLongBoard>()
+                .Property(i => i.Id)
+                .UseSqlServerIdentityColumn();
 
             blder.Entity<BotUserLongBoard>()
                 .HasOne(bulb => bulb.Longboard)

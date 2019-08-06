@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using static LongBoardsBot.Models.Constants;
 using static System.IO.File;
 
-namespace LongBoardsBot.Models
+namespace LongBoardsBot.Models.TextsFunctions
 {
     static class Texts
     {
