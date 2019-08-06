@@ -32,16 +32,6 @@ namespace LongBoardsBot.Models
                 .Property(i => i.Id)
                 .UseSqlServerIdentityColumn();
 
-            blder.Entity<BotUserLongBoard>()
-                .HasOne(bulb => bulb.Longboard)
-                .WithMany(lb => lb.BotUserLongBoards)
-                .HasForeignKey(bulb => bulb.LongboardId);
-
-            blder.Entity<BotUserLongBoard>()
-                .HasOne(bulb => bulb.BotUser)
-                .WithMany(bu => bu.Basket)
-                .HasForeignKey(bulb => bulb.BotUserId);
-
             blder.Entity<BotUser>()
                 .Property(i => i.ChatId)
                 .ValueGeneratedNever();

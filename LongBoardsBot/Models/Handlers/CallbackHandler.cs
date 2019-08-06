@@ -29,7 +29,7 @@ namespace LongBoardsBot.Models.Handlers
                     .Include(i => i.Basket)
                     .ThenInclude(i => i.Longboard)
                     .Include(i => i.BotUser)
-                    .ThenInclude(i => i.LatestPurchase);
+                    .ThenInclude(i => i.CurrentPurchase);
 
             if (query.Data.StartsWith(DeliveredData)) // delivered a longboard...
             {

@@ -35,14 +35,18 @@ namespace LongBoardsBot.Models.Handlers
             var storage = ctx.BotUsers;
 
             var includedQuery = storage
-                .Include(i => i.Basket)
-                    .ThenInclude(j => j.Longboard)
-                .Include(i => i.Basket)
+                .Include(i => i.CurrentPurchase)
+                    .ThenInclude(j => j.Basket)
+                        .ThenInclude(k => k.Longboard)
+                .Include(i => i.CurrentPurchase)
                     .ThenInclude(j => j.BotUser)
+                .Include(i => i.CurrentPurchase)
+                    .ThenInclude(i => i.Basket)
+                        .ThenInclude(i => i.BotUser)
                 .Include(i => i.Pending)
                 .Include(i => i.History)
                     .ThenInclude(j => j.User)
-                .Include(i => i.LatestPurchase)
+                .Include(i => i.CurrentPurchase)
                 .Include(i => i.Purchases);
 
             var chatId = message.Chat.Id;
@@ -134,7 +138,7 @@ namespace LongBoardsBot.Models.Handlers
                     case Stage.ShouldAddLongboardToBasket:
                         {
                             // cancelling with 0 lb chosen
-                            if (text == CancelText && instance.Basket.Count == 0)
+                            if (text == CancelText && instance.CurrentPurchase.Basket.Count == 0)
                             {
                                 await RestartPurchasing(instance, client);
                             }
@@ -283,7 +287,7 @@ namespace LongBoardsBot.Models.Handlers
                     client,
                     instance.ChatId,
                     instance.History,
-                    instance.Basket.Select(i => i.Longboard));
+                    instance.CurrentPurchase.Basket.Select(i => i.Longboard));
 
             await Task.WhenAll(waitForPhotosMsgTask, thereAreLBsLeftTask);
 
@@ -299,7 +303,7 @@ namespace LongBoardsBot.Models.Handlers
             var reportText = Format(AddedToBasketNotificationText, amount, pending.Style);
             var msgTask = client.SendTextMessageAsync(chatId, reportText);
 
-            instance.Basket.Add(
+            instance.CurrentPurchase.Basket.Add(
                 new BotUserLongBoard
                 {
                     BotUser = instance,
@@ -404,7 +408,13 @@ namespace LongBoardsBot.Models.Handlers
             var clearHistory = ClearHistory(instance, client, deleteAll: true);
 
             instance.Pending = null;
-            instance.Basket = null;
+
+            instance.CurrentPurchase = new Purchase
+            {
+                BotUser = instance,
+                Basket = new List<BotUserLongBoard>(5),
+                Guid = Guid.NewGuid()
+            };
 
             return clearHistory;
         }
@@ -413,17 +423,11 @@ namespace LongBoardsBot.Models.Handlers
         {
             instance.Stage = Stage.ShouldRestartDialog;
 
-            var purchase = new Purchase
-            {
-                Guid = Guid.NewGuid(),
-                Basket = instance.Basket.ToList(), // to list - in order to make a copy
-                Cost = instance.Basket.GetCost(),
-                Delivered = false,
-                AdressToDeliver = adressToDeliver
-            };
+            instance.CurrentPurchase.Cost = instance.CurrentPurchase.Basket.GetCost();
+            instance.CurrentPurchase.Delivered = false;
+            instance.CurrentPurchase.AdressToDeliver = adressToDeliver;
 
-            instance.LatestPurchase = purchase;
-            instance.Purchases.Add(purchase);
+            instance.Purchases.Add(instance.CurrentPurchase);
 
             await NotifyAboutPurchase(instance, client);
 
@@ -448,14 +452,14 @@ namespace LongBoardsBot.Models.Handlers
 
         private static async Task<Message> NotifyUser(BotUser instance, TelegramBotClient client)
         {
-            var lbrds = Join(ElementsSeparator, instance.Basket);
-            var cost = Math.Round(instance.Basket.GetCost(), 2);
+            var lbrds = Join(ElementsSeparator, instance.CurrentPurchase.Basket);
+            var cost = Math.Round(instance.CurrentPurchase.Cost, 2);
 
             var text = Format(
                 UserPurchaseInfoText, 
                 lbrds, 
                 cost.ToString(), 
-                instance.LatestPurchase.Guid.ToStringHashTag()); // TODO: price in USD UAH
+                instance.CurrentPurchase.Guid.ToStringHashTag()); // TODO: price in USD UAH
 
             var message = await client.SendTextMessageAsync(instance.ChatId, text);
 
@@ -471,11 +475,11 @@ namespace LongBoardsBot.Models.Handlers
                     new[] {
                         new InlineKeyboardButton
                         {
-                           Text = DeliveredText, CallbackData = $"{DeliveredData}{instance.LatestPurchase.Guid}"
+                           Text = DeliveredText, CallbackData = $"{DeliveredData}{instance.CurrentPurchase.Guid}"
                         },
                         new InlineKeyboardButton
                         {
-                           Text = CancelDeliveryText, CallbackData = $"{CancelDeliveryData}{instance.LatestPurchase.Guid}"
+                           Text = CancelDeliveryText, CallbackData = $"{CancelDeliveryData}{instance.CurrentPurchase.Guid}"
                         }
                     });
 

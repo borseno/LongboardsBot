@@ -14,7 +14,7 @@ namespace LongBoardsBot.Models.TextsFunctions
         public static async Task<string> GetFormattedFinalTextToAdminsAsync(BotUser instance, Purchase purchase = null)
         {
             if (purchase == null)
-                purchase = instance.LatestPurchase;
+                purchase = instance.CurrentPurchase;
 
             var textPatternToAdminsTask = Texts.GetFinalTextToAdminsAsync();
 

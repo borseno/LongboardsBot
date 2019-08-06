@@ -18,15 +18,13 @@ namespace LongBoardsBot.Models.Entities
         [Required]
         public Stage Stage { get; set; }
 
-        public IList<BotUserLongBoard> Basket { get; set; }
-
         public IList<Purchase> Purchases { get; set; }
 
         public IList<ChatMessage> History { get; set; }
 
         public IList<Comment> Comments { get; set; }
 
-        public Purchase LatestPurchase { get; set; }
+        public Purchase CurrentPurchase { get; set; }
 
         public LongBoard Pending { get; set; }
 

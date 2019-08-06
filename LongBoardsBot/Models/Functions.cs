@@ -54,7 +54,7 @@ namespace LongBoardsBot.Models
 
         public static Task<Message> SendInfoAboutBasket(TelegramBotClient client, BotUser user)
         {
-            var text = Format(InfoAboutBasket, Join(ElementsSeparator, user.Basket), user.Basket.GetCost());
+            var text = Format(InfoAboutBasket, Join(ElementsSeparator, user.CurrentPurchase.Basket), user.CurrentPurchase.Basket.GetCost());
 
             return client.SendTextMessageAsync(user.ChatId, text);
         }
@@ -163,7 +163,13 @@ namespace LongBoardsBot.Models
             var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, PhotosAreBeingSentText);
             var sendingLongBoardsTask = SendLongBoards(client, chatId, instance.History);
 
-            instance.Basket = null;
+            instance.CurrentPurchase = new Purchase
+            {
+                BotUser = instance,
+                Basket = new List<BotUserLongBoard>(5),
+                Guid = Guid.NewGuid()
+            };
+
             instance.Pending = null;
 
             await Task.WhenAll(waitForPhotosMsgTask, sendingLongBoardsTask);
