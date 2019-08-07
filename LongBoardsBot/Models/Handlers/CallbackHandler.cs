@@ -11,6 +11,7 @@ using static LongBoardsBot.Models.Constants;
 using static System.String;
 using static LongBoardsBot.Models.TextsFunctions.Texts;
 using static LongBoardsBot.Models.TextsFunctions.FormattedTexts;
+using Telegram.Bot.Exceptions;
 
 namespace LongBoardsBot.Models.Handlers
 {
@@ -23,18 +24,20 @@ namespace LongBoardsBot.Models.Handlers
             this.ctx = ctx;
         }
 
-        public async Task<Message> HandleCallback(TelegramBotClient client, CallbackQuery query)
+        public async Task HandleCallback(TelegramBotClient client, CallbackQuery query)
         {
-            var includedQuery = ctx.Purchases
+            var includedPurchasesQuery = ctx.Purchases
                     .Include(i => i.Basket)
                     .ThenInclude(i => i.Longboard)
                     .Include(i => i.BotUser)
                     .ThenInclude(i => i.CurrentPurchase);
+            var includedCommentsQuery = ctx.Comments
+                    .Include(i => i.Author);
 
             if (query.Data.StartsWith(DeliveredData)) // delivered a longboard...
             {
                 var purchaseId = query.Data.Substring(DeliveredData.Length);
-                var purchase = await includedQuery.FirstAsync(i => i.Guid.ToString() == purchaseId);
+                var purchase = await includedPurchasesQuery.FirstAsync(i => i.Guid.ToString() == purchaseId);
                 var user = purchase.BotUser;
 
                 var wantsToSendAReviewOrNotKBoard = new ReplyKeyboardMarkup(
@@ -59,23 +62,23 @@ namespace LongBoardsBot.Models.Handlers
                 var answerTask = client.AnswerCallbackQueryAsync(query.Id, SuccessfullySent);
 
                 var editTask = client.EditMessageTextAsync(
-                    query.Message.Chat.Id, 
-                    query.Message.MessageId, 
+                    query.Message.Chat.Id,
+                    query.Message.MessageId,
                     textToAdminGroup + Environment.NewLine + SoldMessage,
                     Telegram.Bot.Types.Enums.ParseMode.Markdown
                     );
 
                 await Task.WhenAll(msgTask, answerTask, editTask);
 
-                user.Stage = Entities.Stage.ProcessingShouldReview;
+                user.Stage = Entities.Stage.ProcessingWantsToComment;
                 await ctx.SaveChangesAsync();
 
-                return msgTask.Result;
+                return;
             }
             else if (query.Data.StartsWith(CancelDeliveryData))
             {
                 var purchaseId = query.Data.Substring(CancelDeliveryData.Length);
-                var purchase = await includedQuery.FirstAsync(i => i.Guid.ToString() == purchaseId);
+                var purchase = await includedPurchasesQuery.FirstAsync(i => i.Guid.ToString() == purchaseId);
                 var chat = purchase.BotUser.ChatId; // nullreference
 
                 var cancelledText = await GetCancelledOrderingNotificationText();
@@ -86,11 +89,83 @@ namespace LongBoardsBot.Models.Handlers
 
                 await Task.WhenAll(msgTask, answerTask, deleteTask);
 
-                return msgTask.Result;
+                return;
+            }
+            else if (query.IsCommentsQuery())
+            {
+                try
+                {
+                    var comments = includedCommentsQuery.Select(i => i.Data).ToArray();
+
+                    await HandleCommentsQueryAsync(client, query, comments);
+                }
+                catch (Exception exception)
+                {
+                    if (exception is MessageIsNotModifiedException)
+                        return;
+
+                    if (exception is ApiRequestException)
+                        return;
+
+                    if (exception is WrongPageException)
+                    {
+                        await client.AnswerCallbackQueryAsync(callbackQueryId: query.Id, exception.Message);
+                        return;
+                    }
+
+                    throw;
+                }
             }
             else
             {
                 throw new NotSupportedException("Другие Callback data не обрабатываются, callback data был: " + query.Data);
+            }
+        }
+
+        private Task HandleCommentsQueryAsync(TelegramBotClient bot, CallbackQuery query, string[] comments)
+        {
+            var isFinish = query.Data == FinishComment;
+
+            if (isFinish)
+            {
+                return bot.DeleteMessageAsync(query.Message.Chat.Id, query.Message.MessageId);
+            }
+
+            var isPrev = query.Data.StartsWith(PreviousComment);
+
+            Int32.TryParse(isPrev ? query.Data.Substring(PreviousComment.Length) : query.Data.Substring(PreviousComment.Length), out var index);
+
+            if (isPrev)
+            {
+                if (index == 0)
+                {
+                    throw new WrongPageException("Already on the first page");
+                }
+                else
+                {
+                    index--;
+                }
+            }
+            else
+            {
+                if (index == comments.Length - 1 || comments.Length == 0)
+                {
+                    throw new WrongPageException("Already on the last page");
+                }
+                else
+                {
+                    index++;
+                }
+            }
+
+            return bot.SendOrEditCommentsView(query.Message.Chat.Id, comments, index, query.Message.MessageId);
+        }
+
+        private class WrongPageException : Exception
+        {
+            public WrongPageException(string message) : base(message)
+            {
+
             }
         }
     }

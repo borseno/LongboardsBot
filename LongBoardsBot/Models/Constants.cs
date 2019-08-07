@@ -48,11 +48,17 @@ namespace LongBoardsBot.Models
 
     static partial class Constants
     {
+        public const string NextComment = "NEXT";
+        public const string PreviousComment = "PREV";
+        public const string FinishComment = "FINISH";
+
         public const string SuccessfullySent = @"Уведомление было успешно отправлено пользователю";
         public const string SoldMessage = @"ПРОДАНО И ДОСТАВЛЕНО";
         public const string WantsAddComment = @"Хорошо";
         public const string NotWantsAddComment = @"Лень)";
-        public const string RestartCommand = @"/restart";
+        public const string RestartCommand = @"/" + @"restart";
+        public const string GetCommentsCommand = @"/" + @"getcomments";
+
         public const string ElementsSeparator = @", ";
         public const string CancelText = "Отменить";
         public const string AddText = "Добавить";

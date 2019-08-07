@@ -15,6 +15,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 using static Telegram.Bot.Types.Enums.ParseMode;
 using static LongBoardsBot.Models.TextsFunctions.FormattedTexts;
 using LongBoardsBot.Models.TextsFunctions;
+using Telegram.Bot.Types.Enums;
 
 namespace LongBoardsBot.Models.Handlers
 {
@@ -47,7 +48,8 @@ namespace LongBoardsBot.Models.Handlers
                 .Include(i => i.History)
                     .ThenInclude(j => j.User)
                 .Include(i => i.CurrentPurchase)
-                .Include(i => i.Purchases);
+                .Include(i => i.Purchases)
+                .Include(i => i.Comments);
 
             var chatId = message.Chat.Id;
             var userId = message.From.Id;
@@ -72,6 +74,16 @@ namespace LongBoardsBot.Models.Handlers
             {
                 // check if new properties (new columns in db) are inited for this user
 
+                if (instance.CurrentPurchase == null)
+                {
+                    instance.CurrentPurchase = new Purchase
+                    {
+                        Basket = new List<BotUserLongBoard>(),
+                        BotUser = instance,
+                        Guid = Guid.NewGuid()
+                    };
+                }
+
                 instance.UserId = message.From.Id;
             }
 
@@ -82,6 +94,16 @@ namespace LongBoardsBot.Models.Handlers
                 if (text == RestartCommand && !absent)
                 {
                     await ReloadUserChat(client, instance);
+                }
+                if (text == GetCommentsCommand)
+                {
+                    var comments = await ctx.Comments.Select(i => i.Data).ToArrayAsync();
+ 
+                    var msg = await client.SendOrEditCommentsView(chatId, comments);
+
+                    instance.History.AddMessage(msg, false);
+
+                    return;
                 }
 
                 switch (instance.Stage)
@@ -226,9 +248,51 @@ namespace LongBoardsBot.Models.Handlers
 
                             break;
                         }
-                    case Stage.ProcessingShouldReview:
+                    case Stage.ProcessingWantsToComment:
                         {
-                            // TODO...
+                            if (text == WantsAddComment)
+                            {
+                                instance.Stage = Stage.TypingComment;
+
+                                await client.SendChatActionAsync(chatId, Telegram.Bot.Types.Enums.ChatAction.Typing);
+
+                                var msg = await client.SendTextMessageAsync(chatId, 
+                                    "Напишите комментарий", 
+                                    replyMarkup: new ReplyKeyboardMarkup(new[] { new KeyboardButton(CancelText) }, true, true));
+
+                                instance.History.AddMessage(msg, false);
+                            }
+                            else
+                            {
+                                instance.Stage = Stage.ShouldRestartDialog;
+
+                                await AskIfShouldRestartPurchasing(instance, client);
+                            }
+
+                            break;
+                        }
+                    case Stage.TypingComment:
+                        {
+                            if (text == CancelText)
+                            {
+                                instance.Stage = Stage.ShouldRestartDialog;
+                                await AskIfShouldRestartPurchasing(instance, client);
+
+
+                            }
+                            else
+                            {
+                                instance.Stage = Stage.ShouldRestartDialog;
+
+                                instance.Comments.Add(new Comment
+                                {
+                                    Author = instance,
+                                    Data = text
+                                });
+
+                                await AskIfShouldRestartPurchasing(instance, client);
+                            }
+
                             break;
                         }
                 }
@@ -392,11 +456,14 @@ namespace LongBoardsBot.Models.Handlers
 
         private static async Task GreetAndAskName(TelegramBotClient client, long chatId, BotUser instance)
         {
+            await client.SendChatActionAsync(chatId, ChatAction.Typing);
+
             var greetingTextTask = Texts.GetGreetingTextAsync();
 
             var msg2 = await client.SendStickerAsync(chatId, GreetingStickerId);
             var msg1 = await client.SendTextMessageAsync(chatId, await greetingTextTask);
             var msg = await client.AskName(chatId);
+
 
             instance.History.AddMessages(new[] { msg, msg1, msg2 }, false);
         }

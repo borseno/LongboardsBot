@@ -2,6 +2,9 @@
 using System.Text;
 using System.Threading.Tasks;
 using Telegram.Bot;
+using Telegram.Bot.Exceptions;
+using Telegram.Bot.Types;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace TestingMiscalleneousFunctionalitiesOfTelegramBotApi
 {
@@ -11,32 +14,72 @@ namespace TestingMiscalleneousFunctionalitiesOfTelegramBotApi
 
         static async Task Main(string[] args)
         {
-            bool hasStarted = false;
+            Bot.OnCallbackQuery += Bot_OnCallbackQuery;
+            Bot.OnMessage += Bot_OnMessage;
 
-            start:
+            Bot.StartReceiving();
 
+            Console.ReadLine();
+
+            Bot.StopReceiving();
+        }
+
+        private static void Bot_OnMessage(object sender, Telegram.Bot.Args.MessageEventArgs e)
+        {
+            var chatId = e.Message.Chat.Id;
+
+            Bot.TryListWithComments(chatId).GetAwaiter().GetResult();
+        }
+
+        private static void Bot_OnCallbackQuery(object sender, Telegram.Bot.Args.CallbackQueryEventArgs e)
+        {
             try
             {
+                Bot.HandleCallBackQuery(e.CallbackQuery).GetAwaiter().GetResult();
+            }
+            catch (Exception exception)
+            {
+                if (exception is MessageIsNotModifiedException)
+                    return;
 
-                if (!hasStarted)
+                if (exception is ApiRequestException)
+                    return;
+
+                if (exception is WrongPageException)
                 {
-                    TestMaxSymbolsInAMessage();
+                    Bot.AnswerCallbackQueryAsync(callbackQueryId: e.CallbackQuery.Id, exception.Message).GetAwaiter().GetResult();
+                    return;
                 }
 
-                hasStarted = true;
+                throw;
+            }
+        }
+    }
 
-                Console.ReadLine();
-            }
-            catch (Exception)
-            {
-                goto start;
-            }
+    class WrongPageException : Exception
+    {
+        public WrongPageException(string message) : base(message)
+        {
+
         }
     }
 
     static partial class Program
     {
-        static void TestMarkDownParseMode()
+        const string next = "NEXT";
+        const string prev = "PREV";
+        const string finish = "FINISH";
+
+        static string[] comments = new[]
+            {
+                Repeat("aaaaaaaaaaaa", 10),
+                Repeat("bbbbbbbbbbbb", 13),
+                "cccccccccccccccccccccc".Repeat(15),
+                "dddddddddddddddddddddd".Repeat(20),
+                "vvvvvvvvvvv".Repeat(5)
+            };
+
+        static void TryMarkDownParseMode()
         {
             Bot.StartReceiving();
 
@@ -46,7 +89,77 @@ namespace TestingMiscalleneousFunctionalitiesOfTelegramBotApi
             };
         }
 
-        static void TestMaxSymbolsInAMessage()
+        static Task<Message> TryListWithComments(this TelegramBotClient client, long chatId, int currentIndex = default, int messageId = default)
+        {
+            var isFirstMsg = messageId == default;
+
+            var inlineBtnPrev = new InlineKeyboardButton
+            {
+                CallbackData = $"{prev}{currentIndex}",
+                Text = $"{prev}"
+            };
+            var inlineBtnFinish = new InlineKeyboardButton
+            {
+                CallbackData = $"{finish}",
+                Text = $"{finish}"
+            };
+            var inlineBtnNext = new InlineKeyboardButton
+            {
+                CallbackData = $"{next}{currentIndex}",
+                Text = $"{next}"
+            };
+
+            var keyboard = new InlineKeyboardMarkup(new[] { inlineBtnPrev, inlineBtnFinish, inlineBtnNext });
+
+            if (isFirstMsg)
+            {
+                return client.SendTextMessageAsync(chatId, comments[currentIndex], replyMarkup: keyboard);
+            }
+            else
+            {
+                return client.EditMessageTextAsync(chatId, messageId, comments[currentIndex], replyMarkup: keyboard);
+            }
+        }
+
+        static Task HandleCallBackQuery(this TelegramBotClient bot, CallbackQuery query)
+        {
+            var isFinish = query.Data == finish;
+
+            if (isFinish)
+            {
+                return bot.DeleteMessageAsync(query.Message.Chat.Id, query.Message.MessageId);
+            }
+
+            var isPrev = query.Data.StartsWith(prev);
+            var index = (isPrev ? query.Data.Substring(prev.Length) : query.Data.Substring(next.Length)).ParseInt();
+
+            if (isPrev)
+            {
+                if (index != 0)
+                {
+                    index--;
+                }
+                else
+                {
+                    throw new WrongPageException("Already on the first page");
+                }
+            }
+            else
+            {
+                if (index != comments.GetUpperBound(0))
+                {
+                    index++;
+                }
+                else
+                {
+                    throw new WrongPageException("Already on the last page");
+                }
+            }
+
+            return TryListWithComments(bot, query.Message.Chat.Id, index, query.Message.MessageId);
+        }
+
+        static void TryMaxSymbolsInAMessage()
         {
             Bot.StartReceiving();
 
@@ -80,7 +193,7 @@ namespace TestingMiscalleneousFunctionalitiesOfTelegramBotApi
             };
         }
 
-        private static string Repeat(string text, int count)
+        private static string Repeat(this string text, int count)
         {
             var builder = new StringBuilder(text.Length * count);
 
@@ -89,5 +202,10 @@ namespace TestingMiscalleneousFunctionalitiesOfTelegramBotApi
 
             return builder.ToString();
         }
+    }
+
+    public static class MiscalleneousExtensions
+    {
+        public static int ParseInt(this string str) => Int32.Parse(str);
     }
 }

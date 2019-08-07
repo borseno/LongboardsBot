@@ -15,6 +15,7 @@
         HowManyLongboards = 7,
         GettingShouldDeliverToHomeOrNot = 8,
         GettingHomeAdress = 9,
-        ProcessingShouldReview = 10
+        ProcessingWantsToComment = 10,
+        TypingComment = 11
     }
 }
