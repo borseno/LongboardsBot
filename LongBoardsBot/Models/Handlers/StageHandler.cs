@@ -277,18 +277,19 @@ namespace LongBoardsBot.Models.Handlers
                             {
                                 instance.Stage = Stage.ShouldRestartDialog;
                                 await AskIfShouldRestartPurchasing(instance, client);
-
-
                             }
                             else
                             {
-                                instance.Stage = Stage.ShouldRestartDialog;
+                                if (text == null)
+                                    return;
 
                                 instance.Comments.Add(new Comment
                                 {
                                     Author = instance,
                                     Data = text
                                 });
+
+                                instance.Stage = Stage.ShouldRestartDialog;
 
                                 await AskIfShouldRestartPurchasing(instance, client);
                             }
