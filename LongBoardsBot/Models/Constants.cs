@@ -60,6 +60,7 @@ namespace LongBoardsBot.Models
         public const string GetCommentsCommand = @"/" + @"getcomments";
 
         public const string ElementsSeparator = @", ";
+        public const string CleanUpBasketText = "Очистить корзину";
         public const string CancelText = "Отменить";
         public const string AddText = "Добавить";
         public const string YesText = "Да";
@@ -135,7 +136,7 @@ namespace LongBoardsBot.Models
             ContinuePurchasingOrNotKBoard = new ReplyKeyboardMarkup(new[]
             {
                 new KeyboardButton(YesText),
-                new KeyboardButton(CancelText),
+                new KeyboardButton(CleanUpBasketText),
                 new KeyboardButton(FinishText)
             }, true, true);
         }

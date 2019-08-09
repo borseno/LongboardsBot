@@ -16,6 +16,8 @@
         GettingShouldDeliverToHomeOrNot = 8,
         GettingHomeAdress = 9,
         ProcessingWantsToComment = 10,
-        TypingComment = 11
+        TypingComment = 11,
+        ReceivingIsLivingInKharkivOrNot = 12,
+        Receiving
     }
 }

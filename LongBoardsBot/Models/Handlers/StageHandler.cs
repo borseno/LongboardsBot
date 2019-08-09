@@ -98,7 +98,7 @@ namespace LongBoardsBot.Models.Handlers
                 if (text == GetCommentsCommand)
                 {
                     var comments = await ctx.Comments.Select(i => i.Data).ToArrayAsync();
- 
+
                     var msg = await client.SendOrEditCommentsView(chatId, comments);
 
                     instance.History.AddMessage(msg, false);
@@ -136,12 +136,46 @@ namespace LongBoardsBot.Models.Handlers
                             }
                             else
                             {
-                                instance.Stage = Stage.WhatLongBoard;
+                                instance.Stage = Stage.ReceivingIsLivingInKharkivOrNot;
 
                                 await UpdatePhoneInfo(client, message, instance);
 
-                                await SendAllLongboards(client, message, instance);
+                                var replyMarkup = new ReplyKeyboardMarkup(
+                                new[] {
+                                    new KeyboardButton(YesText),
+                                    new KeyboardButton(NoText)
+                                }, resizeKeyboard: true, oneTimeKeyboard: true);
+
+                                var toUserText = "Вы живете в Харькове?";
+
+                                var msg = await client.SendTextMessageAsync(chatId, toUserText, replyMarkup: replyMarkup);
+
+                                instance.History.AddMessage(msg, false);
+
+
                             }
+
+                            break;
+                        }
+                    case Stage.ReceivingIsLivingInKharkivOrNot:
+                        {
+                            if (text == YesText)
+                            {
+                                instance.IsLivingInKharkiv = true;
+
+
+                            }
+                            else if (text == NoText)
+                            {
+                                instance.IsLivingInKharkiv = false;
+                            }
+                            else
+                            {
+                                return;
+                            }
+
+                            await SendAllLongboards(client, message, instance);
+                            instance.Stage = Stage.WhatLongBoard;
 
                             break;
                         }
@@ -203,7 +237,7 @@ namespace LongBoardsBot.Models.Handlers
                                     await AskIfShouldContinueAddingToBasket(client, instance);
                                 }
                             }
-                            else if (text == CancelText)
+                            else if (text == CleanUpBasketText)
                             {
                                 await RestartPurchasing(instance, client);
                             }
@@ -234,7 +268,7 @@ namespace LongBoardsBot.Models.Handlers
                         }
                     case Stage.GettingHomeAdress:
                         {
-                            
+
                             await OnPurchaseFinishing(instance, client, text);
 
                             break;
@@ -256,8 +290,8 @@ namespace LongBoardsBot.Models.Handlers
 
                                 await client.SendChatActionAsync(chatId, Telegram.Bot.Types.Enums.ChatAction.Typing);
 
-                                var msg = await client.SendTextMessageAsync(chatId, 
-                                    "Напишите комментарий", 
+                                var msg = await client.SendTextMessageAsync(chatId,
+                                    "Напишите комментарий",
                                     replyMarkup: new ReplyKeyboardMarkup(new[] { new KeyboardButton(CancelText) }, true, true));
 
                                 instance.History.AddMessage(msg, false);
@@ -524,9 +558,9 @@ namespace LongBoardsBot.Models.Handlers
             var cost = Math.Round(instance.CurrentPurchase.Cost, 2);
 
             var text = Format(
-                UserPurchaseInfoText, 
-                lbrds, 
-                cost.ToString(), 
+                UserPurchaseInfoText,
+                lbrds,
+                cost.ToString(),
                 instance.CurrentPurchase.Guid.ToStringHashTag()); // TODO: price in USD UAH
 
             var message = await client.SendTextMessageAsync(instance.ChatId, text);

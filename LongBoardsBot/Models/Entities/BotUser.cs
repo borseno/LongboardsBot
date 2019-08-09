@@ -29,5 +29,7 @@ namespace LongBoardsBot.Models.Entities
         public LongBoard Pending { get; set; }
 
         public UserStatistics StatisticsInfo { get; set; }
+
+        public bool IsLivingInKharkiv { get; set; }
     }
 }
