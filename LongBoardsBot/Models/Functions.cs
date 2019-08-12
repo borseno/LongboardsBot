@@ -154,14 +154,13 @@ namespace LongBoardsBot.Models
         /// <param name="instance"></param>
         /// <param name="client"></param>
         /// <returns></returns>
-        public static async Task StartNewDialog(BotUser instance, TelegramBotClient client)
+        public static Task StartNewDialog(BotUser instance, TelegramBotClient client)
         {
-            instance.Stage = Stage.WhatLongBoard;
+            instance.Stage = Stage.ReceivingMenuItem;
 
             var chatId = instance.ChatId;
 
-            var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, PhotosAreBeingSentText);
-            var sendingLongBoardsTask = SendLongBoards(client, chatId, instance.History);
+            var sendingMenuTask = client.SendMenuAsync(instance);
 
             instance.CurrentPurchase = new Purchase
             {
@@ -172,9 +171,7 @@ namespace LongBoardsBot.Models
 
             instance.Pending = null;
 
-            await Task.WhenAll(waitForPhotosMsgTask, sendingLongBoardsTask);
-
-            instance.History.AddMessage(waitForPhotosMsgTask.Result, false);
+            return sendingMenuTask;
         }
 
         public static Task<Message> SendShouldContinueAddingToBasket(TelegramBotClient client, BotUser instance)
@@ -194,6 +191,14 @@ namespace LongBoardsBot.Models
                 var msg1 = await client.SendTextMessageAsync(chatId, NoMoreStylesText);
                 msgStorage.AddMessage(msg1, false);
                 return success;
+            }
+            else
+            {
+                var msg1 = await client.SendTextMessageAsync(chatId, PhotosAreBeingSentText);
+
+                msgStorage.AddMessage(msg1, false);
+
+                await client.SendChatActionAsync(chatId, Telegram.Bot.Types.Enums.ChatAction.UploadPhoto);
             }
 
             var msgsTask = SendPhotos(chatId, client, neededFiles);

@@ -1,4 +1,6 @@
-﻿using System.Linq;
+﻿using LongBoardsBot.Models.Entities;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -55,6 +57,51 @@ namespace LongBoardsBot.Helpers
             {
                 return client.EditMessageTextAsync(chatId, messageId, comments[currentIndex], replyMarkup: keyboard);
             }
+        }
+
+        public static Task<Message> SendMenuAsync(
+            this TelegramBotClient client, BotUser instance
+            )
+        {
+            var inKharkiv = instance.IsLivingInKharkiv;
+            var hasVisitedTesting = instance?.TestingInfo?.Occurred ?? false;
+
+            var buyLboardsButton = new KeyboardButton(StartPurchasingText);
+            var testLboardsButton = new KeyboardButton(StartTestingText);
+
+            var buttons = new List<KeyboardButton>(2)
+            {
+                buyLboardsButton
+            }; 
+
+            if (!hasVisitedTesting && inKharkiv)
+            {
+                buttons.Add(testLboardsButton);
+            }
+
+            var replyMarkup = new ReplyKeyboardMarkup(buttons, true, true);
+
+            return client.SendTextMessageAsync(instance.ChatId, MenuText, replyMarkup: replyMarkup);
+        }
+
+        public static Task<Message> AskToTypeStatisticsAsync(
+            this TelegramBotClient client, long chatId
+            )
+        {
+            var kboard = new ReplyKeyboardMarkup(
+            new[] {
+                new KeyboardButton(YesText),
+                new KeyboardButton(NoText)
+                }, true, true);
+
+            return client.SendTextMessageAsync(chatId, WantsToTypeStatisticsText, replyMarkup: kboard);
+        }
+
+        public static Task<Message> AskDateOfVisit(this TelegramBotClient client, long chatId)
+        {
+            var kboard = new ReplyKeyboardMarkup(new[] { new KeyboardButton(CancelText) }, true, true);
+
+            return client.SendTextMessageAsync(chatId, AskDateOfVisitText, replyMarkup: kboard);
         }
     }
 }

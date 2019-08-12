@@ -22,12 +22,13 @@ namespace LongBoardsBot.Models.TextsFunctions
             var lbrds = Join(ElementsSeparator, purchase.Basket);
             var cost = Math.Round(purchase.Cost, 2);
             var adressInfo = adressToDeliver ?? NoDeliveryInfo;
+            var linkText = Format(LinkFormat, instance.Name, instance.UserId);
 
             var textPatternToAdmins = await textPatternToAdminsTask;
 
             var textFormattedToAdminGroup = Format(
                 textPatternToAdmins,
-                $"[{instance.Name}](tg://user?id={instance.UserId})",
+                linkText,
                 lbrds,
                 cost.ToString(),
                 instance.Name,
@@ -37,6 +38,25 @@ namespace LongBoardsBot.Models.TextsFunctions
                 );
 
             return textFormattedToAdminGroup;
+        }
+
+        public static async Task<string> GetFormattedFinalTestingTextToAdminsAsync(BotUser instance)
+        {
+            var textPatternTask = Texts.GetFinalTestingTextToAdminsAsync();
+
+            var linkText = Format(LinkFormat, instance.Name, instance.UserId);
+            var dateTime = instance.TestingInfo.VisitDateTime;
+            var phoneNumber = instance.Phone;
+
+            var pattern = await textPatternTask;
+
+            var result = Format(pattern,
+                linkText,
+                dateTime,
+                phoneNumber
+                );
+
+            return result;
         }
     }
 }

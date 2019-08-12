@@ -16,6 +16,7 @@ using static Telegram.Bot.Types.Enums.ParseMode;
 using static LongBoardsBot.Models.TextsFunctions.FormattedTexts;
 using LongBoardsBot.Models.TextsFunctions;
 using Telegram.Bot.Types.Enums;
+using System.Globalization;
 
 namespace LongBoardsBot.Models.Handlers
 {
@@ -49,7 +50,9 @@ namespace LongBoardsBot.Models.Handlers
                     .ThenInclude(j => j.User)
                 .Include(i => i.CurrentPurchase)
                 .Include(i => i.Purchases)
-                .Include(i => i.Comments);
+                .Include(i => i.Comments)
+                .Include(i => i.TestingInfo)
+                    .ThenInclude(j => j.BotUser);
 
             var chatId = message.Chat.Id;
             var userId = message.From.Id;
@@ -85,6 +88,11 @@ namespace LongBoardsBot.Models.Handlers
                 }
 
                 instance.UserId = message.From.Id;
+                
+                if (instance.TestingInfo == null)
+                {
+                    instance.TestingInfo = new TestingInfo();
+                }
             }
 
             async Task DoWork()
@@ -151,8 +159,6 @@ namespace LongBoardsBot.Models.Handlers
                                 var msg = await client.SendTextMessageAsync(chatId, toUserText, replyMarkup: replyMarkup);
 
                                 instance.History.AddMessage(msg, false);
-
-
                             }
 
                             break;
@@ -162,8 +168,6 @@ namespace LongBoardsBot.Models.Handlers
                             if (text == YesText)
                             {
                                 instance.IsLivingInKharkiv = true;
-
-
                             }
                             else if (text == NoText)
                             {
@@ -174,8 +178,67 @@ namespace LongBoardsBot.Models.Handlers
                                 return;
                             }
 
-                            await SendAllLongboards(client, message, instance);
-                            instance.Stage = Stage.WhatLongBoard;
+                            var msg = await client.AskToTypeStatisticsAsync(instance.ChatId);
+
+                            instance.History.AddMessage(msg, false);
+                            instance.Stage = Stage.ReceivingDoesWantToTypeStatistics;
+
+                            break;
+                        }
+                    case Stage.ReceivingDoesWantToTypeStatistics:
+                        {
+                            if (text == NoText)
+                            {
+                                var msg = await client.SendMenuAsync(instance);
+
+                                instance.History.AddMessage(msg, false);
+                                instance.Stage = Stage.ReceivingMenuItem;
+                            }
+                            else if (text == YesText)
+                            {
+                                // TODO...
+                            }
+
+                            break;
+                        }
+                    case Stage.ReceivingMenuItem:
+                        {
+                            if (text == StartPurchasingText)
+                            {
+                                await SendAllLongboards(client, message, instance);
+                                instance.Stage = Stage.WhatLongBoard;
+                            }
+                            else if (text == StartTestingText)
+                            {
+                                await client.AskDateOfVisit(chatId);
+
+                                instance.Stage = Stage.ReceivingDateOfVisit;
+                            }
+
+                            break;
+                        }
+                    case Stage.ReceivingDateOfVisit:
+                        {
+                            if (text == CancelText)
+                            {
+                                await AskIfShouldRestartDialog(instance, client);
+                                instance.Stage = Stage.ShouldRestartDialog;
+
+                                return;
+                            }
+
+                            if (!DateTime.TryParseExact(text, DateTimeFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                            {
+                                var msg = await client.SendTextMessageAsync(chatId, "Неверный формат. Попробуйте еще раз");
+
+                                instance.History.AddMessage(msg, false);
+                            }
+                            else
+                            {
+                                instance.TestingInfo.VisitDateTime = date;
+
+                                await OnTestingFinishing(instance, client);
+                            }
 
                             break;
                         }
@@ -268,7 +331,6 @@ namespace LongBoardsBot.Models.Handlers
                         }
                     case Stage.GettingHomeAdress:
                         {
-
                             await OnPurchaseFinishing(instance, client, text);
 
                             break;
@@ -288,7 +350,7 @@ namespace LongBoardsBot.Models.Handlers
                             {
                                 instance.Stage = Stage.TypingComment;
 
-                                await client.SendChatActionAsync(chatId, Telegram.Bot.Types.Enums.ChatAction.Typing);
+                                await client.SendChatActionAsync(chatId, ChatAction.Typing);
 
                                 var msg = await client.SendTextMessageAsync(chatId,
                                     "Напишите комментарий",
@@ -300,7 +362,7 @@ namespace LongBoardsBot.Models.Handlers
                             {
                                 instance.Stage = Stage.ShouldRestartDialog;
 
-                                await AskIfShouldRestartPurchasing(instance, client);
+                                await AskIfShouldRestartDialog(instance, client);
                             }
 
                             break;
@@ -310,7 +372,7 @@ namespace LongBoardsBot.Models.Handlers
                             if (text == CancelText)
                             {
                                 instance.Stage = Stage.ShouldRestartDialog;
-                                await AskIfShouldRestartPurchasing(instance, client);
+                                await AskIfShouldRestartDialog(instance, client);
                             }
                             else
                             {
@@ -325,7 +387,7 @@ namespace LongBoardsBot.Models.Handlers
 
                                 instance.Stage = Stage.ShouldRestartDialog;
 
-                                await AskIfShouldRestartPurchasing(instance, client);
+                                await AskIfShouldRestartDialog(instance, client);
                             }
 
                             break;
@@ -378,9 +440,8 @@ namespace LongBoardsBot.Models.Handlers
             return msg;
         }
 
-        private static async Task<bool> SendNotInBasketLBoards(TelegramBotClient client, long chatId, BotUser instance)
+        private static Task<bool> SendNotInBasketLBoards(TelegramBotClient client, long chatId, BotUser instance)
         {
-            var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, PhotosAreBeingSentText);
             var thereAreLBsLeftTask =
                 SendLongBoards(
                     client,
@@ -388,11 +449,7 @@ namespace LongBoardsBot.Models.Handlers
                     instance.History,
                     instance.CurrentPurchase.Basket.Select(i => i.Longboard));
 
-            await Task.WhenAll(waitForPhotosMsgTask, thereAreLBsLeftTask);
-
-            instance.History.AddMessage(waitForPhotosMsgTask.Result, false);
-
-            return thereAreLBsLeftTask.Result;
+            return thereAreLBsLeftTask;
         }
 
         private static async Task AddToBasketAndNotify(TelegramBotClient client, BotUser instance, int amount)
@@ -450,18 +507,9 @@ namespace LongBoardsBot.Models.Handlers
             instance.History.AddMessage(msg, false);
         }
 
-        private static async Task SendAllLongboards(TelegramBotClient client, Message message, BotUser instance)
-        {
-            var chatId = instance.ChatId;
-
-            var waitForPhotosMsgTask = client.SendTextMessageAsync(chatId, PhotosAreBeingSentText);
-            var photosTask = SendLongBoards(client, message.Chat.Id, instance.History);
-
-            await Task.WhenAll(waitForPhotosMsgTask, photosTask);
-
-            instance.History.AddMessage(waitForPhotosMsgTask.Result, false);
-        }
-
+        private static Task<bool> SendAllLongboards(TelegramBotClient client, Message message, BotUser instance)
+                    => SendLongBoards(client, message.Chat.Id, instance.History);
+        
         private static async Task UpdatePhoneInfo(TelegramBotClient client, Message message, BotUser instance)
         {
             var msgUpdate = await UpdateUsersPhoneAndUsername(client, message, instance);
@@ -482,7 +530,7 @@ namespace LongBoardsBot.Models.Handlers
 
             instance.History.AddMessages(new[] { msg1, msg2 }, false);
         }
-
+        
         private static async Task AskToEnterCorrectName(TelegramBotClient client, BotUser instance, long chatId)
         {
             var msg = await client.SendTextMessageAsync(chatId, EnterCorrectNameText);
@@ -498,7 +546,6 @@ namespace LongBoardsBot.Models.Handlers
             var msg2 = await client.SendStickerAsync(chatId, GreetingStickerId);
             var msg1 = await client.SendTextMessageAsync(chatId, await greetingTextTask);
             var msg = await client.AskName(chatId);
-
 
             instance.History.AddMessages(new[] { msg, msg1, msg2 }, false);
         }
@@ -521,10 +568,53 @@ namespace LongBoardsBot.Models.Handlers
             return clearHistory;
         }
 
+        private async Task OnTestingFinishing(BotUser instance, TelegramBotClient client)
+        {
+            await NotifyAboutTesting(instance, client);
+
+            await AskIfShouldRestartDialog(instance, client);
+            instance.Stage = Stage.ShouldRestartDialog;
+        }
+
+        private Task NotifyAboutTesting(BotUser instance, TelegramBotClient client)
+        {
+            var toAdmins = NotifyAdminsAboutTesting(instance, client);
+            var toUser = NotifyUserAboutTesting(instance, client);
+
+            return Task.WhenAll(toAdmins, toUser);
+        }
+
+        private async Task<Message> NotifyAdminsAboutTesting(BotUser instance, TelegramBotClient client)
+        {
+            var text = await GetFormattedFinalTestingTextToAdminsAsync(instance);
+
+            var inlineKBoard = new InlineKeyboardMarkup(
+                        new[] {
+                            new InlineKeyboardButton
+                            {
+                               Text = TestedText, CallbackData = $"{TestedData}{instance.ChatId}"
+                            },
+                            new InlineKeyboardButton
+                            {
+                               Text = CancelTestingText, CallbackData = $"{CancelTestingData}{instance.ChatId}"
+                            }
+                        });
+
+            return await client.SendTextMessageAsync(AdminGroupChatId, text, parseMode: ParseMode.Markdown, replyMarkup: inlineKBoard);
+        }
+
+        private async Task<Message> NotifyUserAboutTesting(BotUser instance, TelegramBotClient client)
+        {
+            // TODO: add pin down here... 
+            var msg = await client.SendTextMessageAsync(instance.ChatId, $"Вы записаны на тестирование на {instance.TestingInfo.VisitDateTime}");
+
+            instance.History.AddMessage(msg, true);
+
+            return msg;
+        }
+
         private async Task OnPurchaseFinishing(BotUser instance, TelegramBotClient client, string adressToDeliver = null)
         {
-            instance.Stage = Stage.ShouldRestartDialog;
-
             instance.CurrentPurchase.Cost = instance.CurrentPurchase.Basket.GetCost();
             instance.CurrentPurchase.Delivered = false;
             instance.CurrentPurchase.AdressToDeliver = adressToDeliver;
@@ -535,7 +625,8 @@ namespace LongBoardsBot.Models.Handlers
 
             await ClearHistory(instance, client);
 
-            await AskIfShouldRestartPurchasing(instance, client);
+            await AskIfShouldRestartDialog(instance, client);
+            instance.Stage = Stage.ShouldRestartDialog;
         }
 
         private static async Task NotifyAboutPurchase(BotUser instance, TelegramBotClient client)
@@ -552,7 +643,7 @@ namespace LongBoardsBot.Models.Handlers
             instance.History.AddMessages(new[] { toUser.Result, finalMsgToUser }, true);
         }
 
-        private static async Task<Message> NotifyUser(BotUser instance, TelegramBotClient client)
+        private static Task<Message> NotifyUser(BotUser instance, TelegramBotClient client)
         {
             var lbrds = Join(ElementsSeparator, instance.CurrentPurchase.Basket);
             var cost = Math.Round(instance.CurrentPurchase.Cost, 2);
@@ -563,7 +654,7 @@ namespace LongBoardsBot.Models.Handlers
                 cost.ToString(),
                 instance.CurrentPurchase.Guid.ToStringHashTag()); // TODO: price in USD UAH
 
-            var message = await client.SendTextMessageAsync(instance.ChatId, text);
+            var message = client.SendTextMessageAsync(instance.ChatId, text);
 
             return message;
         }
@@ -588,7 +679,7 @@ namespace LongBoardsBot.Models.Handlers
             return await client.SendTextMessageAsync(AdminGroupChatId, textToAdminGroup, Markdown, replyMarkup: inlineKBoard);
         }
 
-        private static async Task AskIfShouldRestartPurchasing(BotUser instance, TelegramBotClient client)
+        private static async Task AskIfShouldRestartDialog(BotUser instance, TelegramBotClient client)
         {
             var shouldRestartMsg = await client.SendTextMessageAsync(instance.ChatId, ShouldRestartText, replyMarkup: RestartKBoard);
 

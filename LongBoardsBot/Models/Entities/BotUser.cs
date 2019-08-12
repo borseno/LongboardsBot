@@ -26,6 +26,8 @@ namespace LongBoardsBot.Models.Entities
 
         public Purchase CurrentPurchase { get; set; }
 
+        public TestingInfo TestingInfo { get; set; }
+
         public LongBoard Pending { get; set; }
 
         public UserStatistics StatisticsInfo { get; set; }

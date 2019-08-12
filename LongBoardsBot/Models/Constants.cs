@@ -25,6 +25,7 @@ namespace LongBoardsBot.Models
         public const string FinalMessageToUserPath = TextsDirectory + @"\FinalMessageToUser.txt";
         public const string DeliveryNotificationPath = TextsDirectory + @"\DeliveryNotification.txt";
         public const string CancelledOrderingNotificationPath = TextsDirectory + @"\CancelledOrderingNotification.txt";
+        public const string FinalTestingTextToAdminsPath = TextsDirectory + @"\TestingFinalMessageToAdmins.txt";
 
         // 0 -> username; 1 -> list of lboards + their amounts; 2 -> total cost of lboards; 
         // 3 -> Name; 4 -> Phone; 5 -> Info about adress (adress or "Заберет сам")
@@ -48,6 +49,8 @@ namespace LongBoardsBot.Models
 
     static partial class Constants
     {
+        public const string DateTimeFormat = @"dd.MM.yyyy HH:mm";
+
         public const string NextComment = "NEXT";
         public const string PreviousComment = "PREV";
         public const string FinishComment = "FINISH";
@@ -60,12 +63,19 @@ namespace LongBoardsBot.Models
         public const string GetCommentsCommand = @"/" + @"getcomments";
 
         public const string ElementsSeparator = @", ";
+
+        public const string StartPurchasingText = "Оформить покупку";
+        public const string StartTestingText = "Оформить тестинг";
+        public const string MenuText = "Выберите дальнейшее действие";
+
+        public const string AskDateOfVisitText = "Введите пожалуйста, дату визита, которая вам подходит";
+        public const string WantsToTypeStatisticsText = "Хотите ввести дополнительные данные для статистики?";
         public const string CleanUpBasketText = "Очистить корзину";
         public const string CancelText = "Отменить";
         public const string AddText = "Добавить";
         public const string YesText = "Да";
         public const string NoText = "Нет";
-        public const string RestartText = "Начать покупки заново";
+        public const string RestartText = "Обратно в меню";
         public const string FinishText = "Закончить";
         public const string ShouldRestartText = RestartText + "?";
         public const string ChooseLongBoardText = @"Выберите лонгборд в зависимости от желаемого стиля катания:";
@@ -94,11 +104,22 @@ namespace LongBoardsBot.Models
         public const string LBInBasketInfo = @"{0} ({1})"; // 0 - longboard's style, 1 - amount
 
         public const string DeliveredText = "Доставили";
+        public const string CancelDeliveryText = "Отмена";
+
+        public const string TestedText = "Протестировано";
+        public const string CancelTestingText = "Отмена";
+    }
+
+    // data for development only! pls dont touch
+    static partial class Constants
+    {
+        public const string CancelTestingData = "CancelTesting#";
+        public const string TestedData = "Tested#";
+
+        public const string CancelDeliveryData = "CancelDelivery#";
         public const string DeliveredData = "Delivered#";
 
-        public const string CancelDeliveryText = "Отмена";
-        public const string CancelDeliveryData = "CancelDelivery#";
-
+        public const string LinkFormat = @"[{0}](tg://user?id={1})";
     }
 
     static partial class Constants

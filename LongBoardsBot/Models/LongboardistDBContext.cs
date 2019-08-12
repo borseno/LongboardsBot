@@ -72,6 +72,14 @@ namespace LongBoardsBot.Models
             blder.Entity<Purchase>()
                 .HasOne(i => i.BotUser)
                 .WithMany(i => i.Purchases);
+
+            blder.Entity<BotUser>()
+                .HasOne(i => i.TestingInfo)
+                .WithOne(i => i.BotUser)
+                .HasForeignKey<TestingInfo>(i => i.BotUserId);
+
+            blder.Entity<TestingInfo>()
+                .HasKey(i => i.BotUserId);
         }
     }
 }

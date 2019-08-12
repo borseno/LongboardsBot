@@ -4,14 +4,16 @@ using LongBoardsBot.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace LongBoardsBot.Migrations
 {
     [DbContext(typeof(LongboardistDBContext))]
-    partial class LongboardistDBContextModelSnapshot : ModelSnapshot
+    [Migration("20190810170804_AddedTestingProperties")]
+    partial class AddedTestingProperties
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

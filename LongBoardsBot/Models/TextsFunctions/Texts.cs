@@ -18,5 +18,7 @@ namespace LongBoardsBot.Models.TextsFunctions
         public static Task<string> GetDeliveryNotification() => ReadAllTextAsync(DeliveryNotificationPath);
 
         public static Task<string> GetCancelledOrderingNotificationText() => ReadAllTextAsync(CancelledOrderingNotificationPath);
+
+        public static Task<string> GetFinalTestingTextToAdminsAsync() => ReadAllTextAsync(FinalTestingTextToAdminsPath);
     }
 }

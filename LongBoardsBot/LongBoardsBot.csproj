@@ -58,6 +58,9 @@
     <None Update="Models\Texts\LongboardInfoPattern.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Models\Texts\TestingFinalMessageToAdmins.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

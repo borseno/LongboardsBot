@@ -18,6 +18,8 @@
         ProcessingWantsToComment = 10,
         TypingComment = 11,
         ReceivingIsLivingInKharkivOrNot = 12,
-        Receiving
+        ReceivingDoesWantToTypeStatistics = 13,
+        ReceivingMenuItem = 14,
+        ReceivingDateOfVisit = 15
     }
 }
