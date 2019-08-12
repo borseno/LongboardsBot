@@ -368,7 +368,7 @@ namespace LongBoardsBot.Models.Handlers
 
                                 instance.History.AddMessage(msg, false);
                             }
-                            else
+                            else if (text == NotWantsAddComment)
                             {
                                 instance.Stage = Stage.ShouldRestartDialog;
 

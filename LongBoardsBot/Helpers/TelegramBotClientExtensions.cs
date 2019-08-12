@@ -21,8 +21,11 @@ namespace LongBoardsBot.Helpers
         public static bool IsCommentsQuery(this CallbackQuery query)
             => new[] { NextComment, FinishComment, PreviousComment }.Any(i => query.Data.StartsWith(i));
 
+        public static bool IsTestingQuery(this CallbackQuery query)
+            => new[] { CancelTestingData, TestedData }.Any(i => query.Data.StartsWith(i));
+
         public static Task<Message> SendOrEditCommentsView(
-            this TelegramBotClient client, long chatId, 
+            this TelegramBotClient client, long chatId,
             string[] comments, int currentIndex = default, int messageId = default)
         {
             if (comments == null || comments.Length == 0)
@@ -73,7 +76,7 @@ namespace LongBoardsBot.Helpers
             var buttons = new List<KeyboardButton>(2)
             {
                 buyLboardsButton
-            }; 
+            };
 
             if (!hasVisitedTesting && inKharkiv)
             {

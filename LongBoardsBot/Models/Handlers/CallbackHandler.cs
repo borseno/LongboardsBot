@@ -12,6 +12,7 @@ using static System.String;
 using static LongBoardsBot.Models.TextsFunctions.Texts;
 using static LongBoardsBot.Models.TextsFunctions.FormattedTexts;
 using Telegram.Bot.Exceptions;
+using Telegram.Bot.Types.Enums;
 
 namespace LongBoardsBot.Models.Handlers
 {
@@ -33,18 +34,14 @@ namespace LongBoardsBot.Models.Handlers
                     .ThenInclude(i => i.CurrentPurchase);
             var includedCommentsQuery = ctx.Comments
                     .Include(i => i.Author);
+            var includedTestingQuery = ctx.BotUsers
+                    .Include(i => i.TestingInfo);
 
             if (query.Data.StartsWith(DeliveredData)) // delivered a longboard...
             {
                 var purchaseId = query.Data.Substring(DeliveredData.Length);
                 var purchase = await includedPurchasesQuery.FirstAsync(i => i.Guid.ToString() == purchaseId);
                 var user = purchase.BotUser;
-
-                var wantsToSendAReviewOrNotKBoard = new ReplyKeyboardMarkup(
-                    new[] {
-                        new KeyboardButton(WantsAddComment),
-                        new KeyboardButton(NotWantsAddComment)
-                    }, true, true);
 
                 var textToAdminGroupTask = GetFormattedFinalTextToAdminsAsync(user, purchase);
                 var deliveryNotificationTextTask = GetDeliveryNotification();
@@ -57,7 +54,7 @@ namespace LongBoardsBot.Models.Handlers
                 var msgTask = client.SendTextMessageAsync(
                     user.ChatId,
                     Format(deliveryNotificationText, purchase.Guid.ToStringHashTag()),
-                    replyMarkup: wantsToSendAReviewOrNotKBoard);
+                    replyMarkup: WantsToSendReviewOrNotKboard);
 
                 var answerTask = client.AnswerCallbackQueryAsync(query.Id, SuccessfullySent);
 
@@ -114,6 +111,48 @@ namespace LongBoardsBot.Models.Handlers
                     }
 
                     throw;
+                }
+            }
+            else if (query.IsTestingQuery())
+            {
+                var isTested = query.Data.StartsWith(TestedData);
+                long chatId;
+
+                if (isTested)
+                {
+                    chatId = Int64.Parse( query.Data.Substring(TestedData.Length) );
+                }
+                else
+                {
+                    chatId = Int64.Parse( query.Data.Substring(CancelTestingData.Length) );
+                }
+
+                var instance = await includedTestingQuery.FirstAsync(i => i.ChatId == chatId);
+
+                if (isTested)
+                {
+                    instance.TestingInfo.Occurred = true;
+
+                    var updatedTextToAdmins = await GetFormattedFinalTestingTextToAdminsAsync(instance);
+                    var textToUser = await GetFormattedFinalTestingTextToUserAsync(instance.TestingInfo);
+
+                    await client.EditMessageTextAsync(query.Message.Chat.Id, query.Message.MessageId, updatedTextToAdmins, ParseMode.Markdown);
+                    await client.AnswerCallbackQueryAsync(query.Id, SuccessfullySent, true);
+                    await client.SendTextMessageAsync(chatId, textToUser, replyMarkup: WantsToSendReviewOrNotKboard);
+
+                    instance.Stage = Entities.Stage.ProcessingWantsToComment;
+
+                    await ctx.SaveChangesAsync();
+                }
+                else
+                {
+                    instance.TestingInfo = null;
+
+                    await client.DeleteMessageAsync(query.Message.Chat.Id, query.Message.MessageId);
+                    await client.SendTextMessageAsync(chatId, "Тестирование лонгбордoв было отменено");
+                    await client.AnswerCallbackQueryAsync(query.Id, SuccessfullySent, true);
+
+                    await ctx.SaveChangesAsync();
                 }
             }
             else

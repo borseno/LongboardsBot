@@ -47,14 +47,24 @@ namespace LongBoardsBot.Models.TextsFunctions
             var linkText = Format(LinkFormat, instance.Name, instance.UserId);
             var dateTime = instance.TestingInfo.VisitDateTime;
             var phoneNumber = instance.Phone;
-
+            var occured = instance.TestingInfo.Occurred;
             var pattern = await textPatternTask;
 
             var result = Format(pattern,
                 linkText,
                 dateTime,
-                phoneNumber
+                phoneNumber,
+                occured ? "Протестировано" : "Еще не протестировано" 
                 );
+
+            return result;
+        }
+
+        public static async Task<string> GetFormattedFinalTestingTextToUserAsync(TestingInfo testingInfo)
+        {
+            var pattern = await Texts.GetFinalTestingTextToUserAsync();
+
+            var result = Format(pattern, testingInfo.VisitDateTime);
 
             return result;
         }

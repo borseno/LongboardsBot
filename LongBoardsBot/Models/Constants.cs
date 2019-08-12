@@ -26,6 +26,7 @@ namespace LongBoardsBot.Models
         public const string DeliveryNotificationPath = TextsDirectory + @"\DeliveryNotification.txt";
         public const string CancelledOrderingNotificationPath = TextsDirectory + @"\CancelledOrderingNotification.txt";
         public const string FinalTestingTextToAdminsPath = TextsDirectory + @"\TestingFinalMessageToAdmins.txt";
+        public const string FinalTestingTextToUserPath = TextsDirectory + @"\TestingFinalMessageToUser.txt";
 
         // 0 -> username; 1 -> list of lboards + their amounts; 2 -> total cost of lboards; 
         // 3 -> Name; 4 -> Phone; 5 -> Info about adress (adress or "Заберет сам")
@@ -123,7 +124,7 @@ namespace LongBoardsBot.Models
     }
 
     static partial class Constants
-    { 
+    {
         public static readonly ReplyKeyboardMarkup AllLBkboard; // keyboard for all longboards
         public static readonly FileInfo[] AllLBs;
         public static readonly DirectoryInfo BoardsDirectory;
@@ -161,5 +162,17 @@ namespace LongBoardsBot.Models
                 new KeyboardButton(FinishText)
             }, true, true);
         }
+    }
+
+    static partial class Constants
+    {
+        public static ReplyKeyboardMarkup WantsToSendReviewOrNotKboard
+            => new ReplyKeyboardMarkup(
+                    new[] {
+                        new KeyboardButton(WantsAddComment),
+                        new KeyboardButton(NotWantsAddComment)
+                    }, true, true);
+
+
     }
 }
