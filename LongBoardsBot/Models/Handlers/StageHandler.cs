@@ -233,6 +233,12 @@ namespace LongBoardsBot.Models.Handlers
 
                                 instance.History.AddMessage(msg, false);
                             }
+                            else if (date.CompareTo(DateTimeExtensions.GetNowKharkiv()) <= 0)
+                            {
+                                var msg = await client.SendTextMessageAsync(chatId, "Невозможно записаться на прошлое время 😒");
+
+                                instance.History.AddMessage(msg, false);
+                            }
                             else
                             {
                                 instance.TestingInfo.VisitDateTime = date;

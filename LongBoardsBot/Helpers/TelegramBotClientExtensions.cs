@@ -1,4 +1,5 @@
 ﻿using LongBoardsBot.Models.Entities;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -100,8 +101,9 @@ namespace LongBoardsBot.Helpers
         public static Task<Message> AskDateOfVisit(this TelegramBotClient client, long chatId)
         {
             var kboard = new ReplyKeyboardMarkup(new[] { new KeyboardButton(CancelText) }, true, true);
+            var text = String.Format(AskDateOfVisitText, DateTimeFormat);
 
-            return client.SendTextMessageAsync(chatId, AskDateOfVisitText, replyMarkup: kboard);
+            return client.SendTextMessageAsync(chatId, text, replyMarkup: kboard);
         }
     }
 }

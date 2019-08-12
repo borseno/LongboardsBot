@@ -68,7 +68,7 @@ namespace LongBoardsBot.Models
         public const string StartTestingText = "Оформить тестинг";
         public const string MenuText = "Выберите дальнейшее действие";
 
-        public const string AskDateOfVisitText = "Введите пожалуйста, дату визита, которая вам подходит";
+        public const string AskDateOfVisitText = "Введите пожалуйста, дату визита, которая вам подходит в формате {0}, где ММ - месяц, dd - день, yyyy - год, HH - час, mm - минуты";
         public const string WantsToTypeStatisticsText = "Хотите ввести дополнительные данные для статистики?";
         public const string CleanUpBasketText = "Очистить корзину";
         public const string CancelText = "Отменить";
