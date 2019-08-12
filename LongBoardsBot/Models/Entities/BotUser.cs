@@ -15,8 +15,15 @@ namespace LongBoardsBot.Models.Entities
 
         public string UserName { get; set; }
 
+        public bool IsLivingInKharkiv { get; set; }
+
+        public State State { get; set; } 
+
         [Required]
         public Stage Stage { get; set; }
+
+        public StatisticsStage StatisticsStage { get; set; }
+        public bool IsOneTimeStatistics { get; set; }
 
         public IList<Purchase> Purchases { get; set; }
 
@@ -31,7 +38,5 @@ namespace LongBoardsBot.Models.Entities
         public LongBoard Pending { get; set; }
 
         public UserStatistics StatisticsInfo { get; set; }
-
-        public bool IsLivingInKharkiv { get; set; }
     }
 }

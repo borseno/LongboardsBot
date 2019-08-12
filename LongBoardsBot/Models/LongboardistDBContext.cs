@@ -25,6 +25,22 @@ namespace LongBoardsBot.Models
                 .Property(bu => bu.Stage)
                 .HasDefaultValue(Stage.AskingName);
 
+            blder.Entity<BotUser>()
+                .Property(bu => bu.StatisticsStage)
+                .HasConversion<int>();
+
+            blder.Entity<BotUser>()
+                .Property(bu => bu.StatisticsStage)
+                .HasDefaultValue(StatisticsStage.None);
+
+            blder.Entity<BotUser>()
+                .Property(bu => bu.State)
+                .HasConversion<int>();
+
+            blder.Entity<BotUser>()
+                .Property(bu => bu.State)
+                .HasDefaultValue(State.Default);
+
             blder.Entity<BotUserLongBoard>()
                 .HasKey(bulb => bulb.Id);
 

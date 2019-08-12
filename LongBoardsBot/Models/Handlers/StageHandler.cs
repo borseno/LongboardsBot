@@ -52,7 +52,8 @@ namespace LongBoardsBot.Models.Handlers
                 .Include(i => i.Purchases)
                 .Include(i => i.Comments)
                 .Include(i => i.TestingInfo)
-                    .ThenInclude(j => j.BotUser);
+                    .ThenInclude(j => j.BotUser)
+                .Include(i => i.StatisticsInfo);
 
             var chatId = message.Chat.Id;
             var userId = message.From.Id;
@@ -68,7 +69,7 @@ namespace LongBoardsBot.Models.Handlers
                     UserName = message.Chat.Username,
                     Stage = Stage.AskingName,
                     History = new List<ChatMessage>(16),
-                    UserId = message.From.Id
+                    UserId = message.From.Id,
                 };
 
                 storage.Add(instance);
@@ -93,6 +94,10 @@ namespace LongBoardsBot.Models.Handlers
                 {
                     instance.TestingInfo = new TestingInfo();
                 }
+                if (instance.StatisticsInfo == null)
+                {
+                    instance.StatisticsInfo = new UserStatistics();
+                }
             }
 
             async Task DoWork()
@@ -102,6 +107,7 @@ namespace LongBoardsBot.Models.Handlers
                 if (text == RestartCommand && !absent)
                 {
                     await ReloadUserChat(client, instance);
+                    return;
                 }
                 if (text == GetCommentsCommand)
                 {
@@ -111,6 +117,12 @@ namespace LongBoardsBot.Models.Handlers
 
                     instance.History.AddMessage(msg, false);
 
+                    return;
+                }
+
+                if (instance.State == State.Statistics)
+                {
+                    client.ProcessStatisticsMessage(message, instance);
                     return;
                 }
 
@@ -192,12 +204,16 @@ namespace LongBoardsBot.Models.Handlers
                                 var msg = await client.SendMenuAsync(instance);
 
                                 instance.History.AddMessage(msg, false);
-                                instance.Stage = Stage.ReceivingMenuItem;
                             }
                             else if (text == YesText)
                             {
-                                // TODO...
+                                instance.State = State.Statistics;
+                                instance.IsOneTimeStatistics = false;
+
+                                await client.InitStatisticsStageAsync(StatisticsStage.Age, instance);
                             }
+
+                            instance.Stage = Stage.ReceivingMenuItem;
 
                             break;
                         }

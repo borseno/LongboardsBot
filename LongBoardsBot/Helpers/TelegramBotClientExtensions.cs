@@ -13,7 +13,10 @@ namespace LongBoardsBot.Helpers
     public static class TelegramExtensions
     {
         public static Task<Message> AskName(this TelegramBotClient client, long chatId)
-    => client.SendTextMessageAsync(chatId, EnterYourNameText);
+            => client.SendTextMessageAsync(chatId, EnterYourNameText);
+
+        public static Task<Message> AskAge(this TelegramBotClient client, long chatId)
+            => client.SendTextMessageAsync(chatId, EnterYourAgeText);
 
         public static Task<Message> AskPhone(this TelegramBotClient client, long chatId)
             => client.SendTextMessageAsync(chatId, EnterYourPhoneText);

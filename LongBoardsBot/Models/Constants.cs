@@ -91,6 +91,7 @@ namespace LongBoardsBot.Models
         public const string NoDeliveryInfo = @"Заберет сам";
         public const string WantToContinuePurchasingText = @"Вы хотите продолжить покупки?";
         public const string EnterYourNameText = @"Введите ваше имя:";
+        public const string EnterYourAgeText = @"Введите ваш возраст:";
         public const string EnterYourPhoneText = @"Введите контактный номер телефона:";
         public const string PhotosAreBeingSentText = @"Идет отправка фотографий...";
         public const string AskingToEnterAmountOfLBText =
