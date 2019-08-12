@@ -210,7 +210,11 @@ namespace LongBoardsBot.Models.Handlers
                             }
                             else if (text == StartTestingText)
                             {
-                                await client.AskDateOfVisit(chatId);
+                                var tasks = client.AskDateOfVisit(chatId);
+
+                                await Task.WhenAll(tasks);
+
+                                instance.History.AddMessages(tasks.Select(i => i.Result), false);
 
                                 instance.Stage = Stage.ReceivingDateOfVisit;
                             }

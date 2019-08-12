@@ -98,12 +98,15 @@ namespace LongBoardsBot.Helpers
             return client.SendTextMessageAsync(chatId, WantsToTypeStatisticsText, replyMarkup: kboard);
         }
 
-        public static Task<Message> AskDateOfVisit(this TelegramBotClient client, long chatId)
+        public static Task<Message>[] AskDateOfVisit(this TelegramBotClient client, long chatId)
         {
             var kboard = new ReplyKeyboardMarkup(new[] { new KeyboardButton(CancelText) }, true, true);
             var text = String.Format(AskDateOfVisitText, DateTimeFormat);
 
-            return client.SendTextMessageAsync(chatId, text, replyMarkup: kboard);
+            var pinTask = client.SendLocationAsync(chatId, 50.035813f, 36.2205788f);
+            var textTask = client.SendTextMessageAsync(chatId, text, replyMarkup: kboard);
+
+            return new[] { pinTask, textTask };
         }
     }
 }
