@@ -107,7 +107,6 @@ namespace LongBoardsBot.Models.Handlers
                 if (text == RestartCommand && !absent)
                 {
                     await ReloadUserChat(client, instance);
-                    return;
                 }
                 if (text == GetCommentsCommand)
                 {
@@ -122,7 +121,7 @@ namespace LongBoardsBot.Models.Handlers
 
                 if (instance.State == State.Statistics)
                 {
-                    await client.ProcessStatisticsMessageAsync(message, instance);
+                    await StatisticsStageHandling.ProcessStatisticsMessageAsync(client, message, instance);
                     return;
                 }
 
@@ -210,7 +209,7 @@ namespace LongBoardsBot.Models.Handlers
                                 instance.State = State.Statistics;
                                 instance.IsOneTimeStatistics = false;
 
-                                await client.InitStatisticsStageAsync(StatisticsStage.Age, instance);
+                                await StatisticsStageHandling.InitStatisticsStageAsync(client, StatisticsStage.Age, instance);
                             }
 
                             instance.Stage = Stage.ReceivingMenuItem;
@@ -584,7 +583,12 @@ namespace LongBoardsBot.Models.Handlers
 
         private static Task ReloadUserChat(TelegramBotClient client, BotUser instance)
         {
+            // todo refactor: place it all in some other document and class
             instance.Stage = Stage.AskingName;
+            instance.StatisticsStage = StatisticsStage.None;
+            instance.State = State.Default;
+            instance.TestingInfo = new TestingInfo();
+            //
 
             var clearHistory = ClearHistory(instance, client, deleteAll: true);
 
