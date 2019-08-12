@@ -109,7 +109,7 @@ namespace LongBoardsBot.Helpers
             var kboard = new ReplyKeyboardMarkup(new[] { new KeyboardButton(CancelText) }, true, true);
             var text = String.Format(AskDateOfVisitText, DateTimeFormat);
 
-            var pinTask = client.SendLocationAsync(chatId, 50.035813f, 36.2205788f);
+            var pinTask = client.SendLocationAsync(chatId, 50.035638f, 36.220344f);
             var textTask = client.SendTextMessageAsync(chatId, text, replyMarkup: kboard);
 
             return new[] { pinTask, textTask };

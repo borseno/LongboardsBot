@@ -9,6 +9,8 @@ namespace LongBoardsBot.Models.Handlers
 {
     public static class StatisticsStageHandling
     {
+        private const StatisticsStage last = StatisticsStage.Age; 
+
         public static async Task InitStatisticsStageAsync(this TelegramBotClient client, StatisticsStage statisticsStage, BotUser botUser)
         {
             if (statisticsStage == StatisticsStage.Age)
@@ -21,32 +23,48 @@ namespace LongBoardsBot.Models.Handlers
             botUser.StatisticsStage = statisticsStage;
         }
 
-        public static void ProcessStatisticsMessage(this TelegramBotClient client, Message message, BotUser botUser)
+        public static async Task ProcessStatisticsMessageAsync(this TelegramBotClient client, Message message, BotUser botUser)
         {
             var stage = botUser.StatisticsStage;
+            var isLast = stage == last;
 
             if (stage == StatisticsStage.Age)
             {
-                var text = message.Text;
+                await ProcessAgeAsync(client, message, botUser, isLast);
+            }
+            if (stage == StatisticsStage.WorkingOrStudying)
+            {
+                await ProcessWorkingOrStudyingAsync(client, message, botUser, isLast);
+            }
+        }
 
-                if (text == null)
-                    return;
+        private static Task ProcessWorkingOrStudyingAsync(TelegramBotClient client, Message message, BotUser botUser, bool isLast)
+        {
+            throw new NotImplementedException();
+        }
 
-                var success = Int32.TryParse(text, out var age);
+        private static async Task ProcessAgeAsync(TelegramBotClient client, Message message, BotUser botUser, bool isLast)
+        {
+            var text = message.Text;
 
-                if (success)
+            if (text == null)
+                return;
+
+            var success = Int32.TryParse(text, out var age);
+
+            if (success)
+            {
+                botUser.StatisticsInfo.Age = age;
+
+                if (botUser.IsOneTimeStatistics || isLast)
                 {
-                    botUser.StatisticsInfo.Age = age;
+                    botUser.State = State.Default;
 
-                    if (!botUser.IsOneTimeStatistics)
-                    {
-                        // logic of moving to the next stage
-                        // by calling Other InitStage
-                    }
-                    else
-                    {
-                        botUser.State = State.Default;    
-                    }
+                    await client.SendMenuAsync(botUser);
+                }
+                else
+                {
+                    await client.InitStatisticsStageAsync(StatisticsStage.WorkingOrStudying, botUser);
                 }
             }
         }

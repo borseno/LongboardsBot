@@ -122,7 +122,7 @@ namespace LongBoardsBot.Models.Handlers
 
                 if (instance.State == State.Statistics)
                 {
-                    client.ProcessStatisticsMessage(message, instance);
+                    await client.ProcessStatisticsMessageAsync(message, instance);
                     return;
                 }
 
@@ -256,6 +256,12 @@ namespace LongBoardsBot.Models.Handlers
                             else if (date.CompareTo(DateTimeExtensions.GetNowKharkiv()) <= 0)
                             {
                                 var msg = await client.SendTextMessageAsync(chatId, "Невозможно записаться на прошлое время 😒");
+
+                                instance.History.AddMessage(msg, false);
+                            }
+                            else if (!date.IsCoffeeSpaceOpen())
+                            {
+                                var msg = await client.SendTextMessageAsync(chatId, "Coffee Space в это время не работает 😒");
 
                                 instance.History.AddMessage(msg, false);
                             }

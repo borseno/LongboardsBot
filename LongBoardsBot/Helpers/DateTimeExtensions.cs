@@ -6,7 +6,7 @@ using static LongBoardsBot.Helpers.RuntimeInformationExtensions;
 
 namespace LongBoardsBot.Helpers
 {
-    public class DateTimeExtensions
+    public static class DateTimeExtensions
     {
         private const string KharkivWindowsTimeZoneName = @"E. Europe Standard Time";
 
@@ -19,6 +19,11 @@ namespace LongBoardsBot.Helpers
             var result = TimeZoneInfo.ConvertTime(now, timeZone);
 
             return result;
+        }
+        
+        public static bool IsCoffeeSpaceOpen(this DateTime time)
+        {
+            return time.Hour >= 8 && time.Hour <= 22;
         }
     }
 }

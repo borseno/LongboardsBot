@@ -1,4 +1,5 @@
 ﻿using LongBoardsBot.Helpers;
+using System;
 using System.IO;
 using System.Linq;
 using Telegram.Bot.Types.ReplyMarkups;
@@ -7,7 +8,7 @@ namespace LongBoardsBot.Models
 {
     static partial class Constants
     {
-        public const string Url = "https://longboardistbot.azurewebsites.net:443/";
+        public const string Url = "https://longboardistbot1.azurewebsites.net:443/";
         public const string NickName = "@LongBoard_Dev_Bot"; // nickname (the one that starts with @)
         public const string ApiKey = @"821836757:AAHFbFgSrbrvpGVpzCYWZAwG2Jzo7Cbl1m8";
         public const long AdminGroupChatId = -1001181244049;
@@ -69,7 +70,7 @@ namespace LongBoardsBot.Models
         public const string StartTestingText = "Оформить тестинг";
         public const string MenuText = "Выберите дальнейшее действие";
 
-        public const string AskDateOfVisitText = "Введите пожалуйста, дату визита, которая вам подходит в формате {0}, где ММ - месяц, dd - день, yyyy - год, HH - час, mm - минуты";
+        public static readonly string AskDateOfVisitText = "Мы доступны с 08:00 по 22:00 в любой день." + Environment.NewLine + "Введите пожалуйста, дату визита, которая вам подходит в формате {0}, где ММ - месяц, dd - день, yyyy - год, HH - час, mm - минуты";
         public const string WantsToTypeStatisticsText = "Хотите ввести дополнительные данные для статистики?";
         public const string CleanUpBasketText = "Очистить корзину";
         public const string CancelText = "Отменить";
