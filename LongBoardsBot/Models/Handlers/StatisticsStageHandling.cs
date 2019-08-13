@@ -4,6 +4,7 @@ using Telegram.Bot;
 using LongBoardsBot.Helpers;
 using Telegram.Bot.Types;
 using System;
+using static LongBoardsBot.Models.Constants;
 
 namespace LongBoardsBot.Models.Handlers
 {
@@ -28,18 +29,23 @@ namespace LongBoardsBot.Models.Handlers
         {
             var stage = botUser.StatisticsStage;
             var isLast = stage == last;
+            var isCancelled = message.Text == CancelText;
 
-            var processor = GetAsyncStatisticsMessageProcessor(stage);
-
-            await processor.Invoke(client, message, botUser);
-
-            if (botUser.IsOneTimeStatistics || isLast)
+            if (!isCancelled)
             {
-                botUser.State = State.Default;
-                botUser.StatisticsStage = StatisticsStage.None;
+                var processor = GetAsyncStatisticsMessageProcessor(stage);
 
-                await client.SendMenuAsync(botUser);
-                botUser.Stage = Stage.ReceivingMenuItem;
+                var success = await processor.Invoke(client, message, botUser);
+
+                if (!success)
+                {
+                    return;
+                }
+            }
+
+            if (botUser.IsOneTimeStatistics || isLast || isCancelled)
+            {
+                await ExitStatisticsPoll(client, botUser);
             }
             else
             {
@@ -47,6 +53,15 @@ namespace LongBoardsBot.Models.Handlers
                 var nextStageInitializer = GetAsyncStatisticsStageInitializer(nextStage);
                 await nextStageInitializer.Invoke(client, botUser);
             }
+        }
+
+        private static async Task ExitStatisticsPoll(TelegramBotClient client, BotUser botUser)
+        {
+            botUser.State = State.Default;
+            botUser.StatisticsStage = StatisticsStage.None;
+
+            await client.SendMenuAsync(botUser);
+            botUser.Stage = Stage.ReceivingMenuItem;
         }
 
         private static Task<bool> ProcessWorkingOrStudyingAsync(TelegramBotClient client, Message message, BotUser botUser)

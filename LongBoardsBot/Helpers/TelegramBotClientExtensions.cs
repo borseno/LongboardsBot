@@ -16,7 +16,7 @@ namespace LongBoardsBot.Helpers
             => client.SendTextMessageAsync(chatId, EnterYourNameText);
 
         public static Task<Message> AskAge(this TelegramBotClient client, long chatId)
-            => client.SendTextMessageAsync(chatId, EnterYourAgeText);
+            => client.SendTextMessageAsync(chatId, EnterYourAgeText, disableNotification: true, replyMarkup: CancelKeyboard);
 
         public static Task<Message> AskPhone(this TelegramBotClient client, long chatId)
             => client.SendTextMessageAsync(chatId, EnterYourPhoneText);

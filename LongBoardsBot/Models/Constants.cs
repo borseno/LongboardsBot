@@ -175,6 +175,11 @@ namespace LongBoardsBot.Models
                         new KeyboardButton(NotWantsAddComment)
                     }, true, true);
 
-
+        public static ReplyKeyboardMarkup CancelKeyboard
+            => new ReplyKeyboardMarkup(
+                    new[]
+                    {
+                        new KeyboardButton(CancelText)
+                    }, true, true);
     }
 }
