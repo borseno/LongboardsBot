@@ -12,7 +12,7 @@ namespace LongBoardsBot.Models.Handlers
 {
     public static partial class StatisticsStageHandling
     {
-        private const StatisticsStage last = StatisticsStage.Profession;
+        private const StatisticsStage last = StatisticsStage.Hobby;
 
         // indicates whether a move to a next state should be done or not
         private delegate Task<bool> AsyncStatisticsMessageProcessor(TelegramBotClient client, Message message, BotUser botUser);
@@ -153,6 +153,37 @@ namespace LongBoardsBot.Models.Handlers
 
             return Task.FromResult(true);
         }
+        private static async Task InitHobbyAsync(TelegramBotClient client, BotUser botUser)
+        {
+            var msg = await client
+                .SendTextMessageAsync(
+                botUser.ChatId, 
+                $"Напишите пожалуйста о своем хобби (макс: {MaxHobbySymbols} символов)",
+                replyMarkup: CancelKeyboard);
+
+            botUser.History.AddMessage(msg, false);
+        }
+        private static async Task<bool> ProcessHobbyAsync(TelegramBotClient client, Message message, BotUser botUser)
+        {
+            var text = message?.Text;
+
+            if (text == null)
+            {
+                return false;
+            }
+
+            if (text.Length > MaxHobbySymbols)
+            {
+                var msg = await client.SendTextMessageAsync(botUser.ChatId, 
+                    $"Макс колво символов: {MaxHobbySymbols}. Было введено: {text.Length}");
+
+                botUser.History.AddMessage(msg, false);
+            }
+
+            botUser.StatisticsInfo.Hobby = text;
+
+            return true;
+        }
 
         private static async Task InitProfessionAsync(TelegramBotClient client, BotUser botUser)
         {
@@ -177,10 +208,13 @@ namespace LongBoardsBot.Models.Handlers
                     return ProcessWorkingOrStudyingAsync;
                 case StatisticsStage.Profession:
                     return ProcessProfessionAsync;
+                case StatisticsStage.Hobby:
+                    return ProcessHobbyAsync;
                 default:
                     throw new NotSupportedException(stage.ToString() + " is not supported");
             }
         }
+
 
         private static AsyncStatisticsStageInitializer GetAsyncStatisticsStageInitializer(StatisticsStage stage)
         {
@@ -192,9 +226,12 @@ namespace LongBoardsBot.Models.Handlers
                     return InitWorkingOrStudyingAsync;
                 case StatisticsStage.Profession:
                     return InitProfessionAsync;
+                case StatisticsStage.Hobby:
+                    return InitHobbyAsync;
                 default:
                     throw new NotSupportedException(stage.ToString() + " is not supported");
             }
         }
+
     }
 }

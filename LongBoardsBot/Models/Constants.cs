@@ -52,6 +52,7 @@ namespace LongBoardsBot.Models
     
     static partial class Constants
     {
+        public const int MaxHobbySymbols = 450;
         public const string DateTimeFormat = @"dd.MM.yyyy HH:mm";
 
         public const string NextComment = "NEXT";

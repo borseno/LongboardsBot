@@ -20,5 +20,7 @@ namespace LongBoardsBot.Models.Entities
         public SocialStatus SocialStatus { get; set; }
 
         public string Profession { get; set; }
+
+        public string Hobby { get; set; }
     }
 }
