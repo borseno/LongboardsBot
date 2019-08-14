@@ -158,8 +158,6 @@ namespace LongBoardsBot.Models
         {
             instance.Stage = Stage.ReceivingMenuItem;
 
-            var chatId = instance.ChatId;
-
             var sendingMenuTask = client.SendMenuAsync(instance);
 
             instance.CurrentPurchase = new Purchase
@@ -225,11 +223,6 @@ namespace LongBoardsBot.Models
                .Where(i => i.Extension == TextExtension)
                .Select(i => new KeyboardButton(i.NameWithoutExt()));
 
-            IEnumerable<KeyboardButton> GetButtonsJpg() =>
-            neededFiles
-                .Where(i => i.Extension == ImageExtension)
-                .Select(i => new KeyboardButton(i.NameWithoutExt()));
-
             return GetButtonsTxt();
         }
         /// <summary>
@@ -287,49 +280,6 @@ namespace LongBoardsBot.Models
 
         public static bool ExistsLongBoard(string text) => AllLBs.Any(i => i.Name.Contains(text));
 
-        /// <summary>
-        /// sends photos from this server to telegram server and then to the user
-        /// </summary>
-        /// <param name="chatId"></param>
-        /// <param name="client"></param>
-        /// <param name="neededFiles"></param>
-        /// <returns></returns>
-        private static async Task<Message[]> LoadAndSendPhotos(long chatId, TelegramBotClient client, IEnumerable<FileInfo> neededFiles)
-        {
-            var neededFilesArr = neededFiles.Where(i => i.Extension == ImageExtension).ToArray();
-            var count = neededFilesArr.Length;
-            var photos = new List<InputMediaPhoto>(count); // what if more than 10 photos? TODO!
-            var streams = new List<MemoryStream>(count);
-
-            try
-            {
-                foreach (var i in neededFilesArr)
-                {
-                    using (var bitmap = new Bitmap(i.FullName)) // critical change here
-                    {
-                        var stream = new MemoryStream();
-                        bitmap.Save(stream, ImageFormat.Jpeg);
-                        stream.Position = 0;
-
-                        var nameWithoutExt = i.NameWithoutExt();
-                        var photo = new InputMediaPhoto(new InputMedia(stream, nameWithoutExt));
-
-                        photos.Add(photo);
-                        streams.Add(stream);
-                    }
-                }
-
-                return await client.SendMediaGroupAsync(chatId, photos); // has to be awaited here! so that streams dont get disposed before photos are sent
-            }
-            finally
-            {
-                foreach (var i in streams)
-                {
-                    i?.Dispose();
-                }
-            }
-        }
-
         private static async Task<Message[]> SendAllLBExistingPhotos(long chatId, TelegramBotClient client, IEnumerable<FileInfo> neededFiles)
         {
             var neededFilesArr = neededFiles.Where(i => i.Extension == TextExtension).ToArray();
@@ -341,7 +291,7 @@ namespace LongBoardsBot.Models
                 photos.Add(new InputMediaPhoto(token));
             }
 
-            return await client.SendMediaGroupAsync(chatId, photos);
+            return await client.SendMediaGroupAsync(photos, chatId);
         }
 
         private static async Task<Message[]> SendLBExistingPhotos(long chatId, TelegramBotClient client, string style)
@@ -354,7 +304,7 @@ namespace LongBoardsBot.Models
 
             var photos = tokens.Select(i => new InputMediaPhoto(i)).ToArray();
 
-            return await client.SendMediaGroupAsync(chatId, photos);
+            return await client.SendMediaGroupAsync(photos, chatId);
         }
     }
 }

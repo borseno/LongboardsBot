@@ -320,7 +320,7 @@ namespace LongBoardsBot.Models.Handlers
                         {
                             if (text == YesText)
                             {
-                                var success = await SendNotInBasketLBoards(client, chatId, instance);
+                                var success = await SendNotInBasketLBoards(client, instance);
 
                                 if (success)
                                 {
@@ -471,7 +471,7 @@ namespace LongBoardsBot.Models.Handlers
             return msg;
         }
 
-        private static Task<bool> SendNotInBasketLBoards(TelegramBotClient client, long chatId, BotUser instance)
+        private static Task<bool> SendNotInBasketLBoards(TelegramBotClient client, BotUser instance)
         {
             var thereAreLBsLeftTask =
                 SendLongBoards(

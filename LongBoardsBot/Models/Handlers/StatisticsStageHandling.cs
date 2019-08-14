@@ -29,9 +29,14 @@ namespace LongBoardsBot.Models.Handlers
 
         public static async Task ProcessStatisticsMessageAsync(TelegramBotClient client, Message message, BotUser botUser)
         {
+            var text = message?.Text;
+
+            if (text == null)
+                return;
+
             var stage = botUser.StatisticsStage;
             var isLast = stage == last;
-            var isCancelled = message?.Text == CancelText;
+            var isCancelled = text == CancelText;
 
             if (!isCancelled)
             {
@@ -120,9 +125,6 @@ namespace LongBoardsBot.Models.Handlers
         {
             var text = message.Text;
 
-            if (text == null)
-                return Task.FromResult(false);
-
             var success = Int32.TryParse(text, out var age);
 
             if (success)
@@ -137,12 +139,7 @@ namespace LongBoardsBot.Models.Handlers
 
         private static Task<bool> ProcessProfessionAsync(TelegramBotClient client, Message message, BotUser botUser)
         {
-            var text = message?.Text;
-
-            if (text == null)
-            {
-                return Task.FromResult(false);
-            }
+            var text = message.Text;
 
             if (!Regex.IsMatch(text, ProfessionRegexp))
             {
@@ -165,12 +162,7 @@ namespace LongBoardsBot.Models.Handlers
         }
         private static async Task<bool> ProcessHobbyAsync(TelegramBotClient client, Message message, BotUser botUser)
         {
-            var text = message?.Text;
-
-            if (text == null)
-            {
-                return false;
-            }
+            var text = message.Text;
 
             if (text.Length > MaxHobbySymbols)
             {
