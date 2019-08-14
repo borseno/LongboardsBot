@@ -6,12 +6,13 @@ using Telegram.Bot.Types;
 using System;
 using static LongBoardsBot.Models.Constants;
 using Telegram.Bot.Types.ReplyMarkups;
+using System.Text.RegularExpressions;
 
 namespace LongBoardsBot.Models.Handlers
 {
     public static partial class StatisticsStageHandling
     {
-        private const StatisticsStage last = StatisticsStage.WorkingOrStudying;
+        private const StatisticsStage last = StatisticsStage.Profession;
 
         // indicates whether a move to a next state should be done or not
         private delegate Task<bool> AsyncStatisticsMessageProcessor(TelegramBotClient client, Message message, BotUser botUser);
@@ -133,36 +134,67 @@ namespace LongBoardsBot.Models.Handlers
 
             return Task.FromResult(false);
         }
+
+        private static Task<bool> ProcessProfessionAsync(TelegramBotClient client, Message message, BotUser botUser)
+        {
+            var text = message?.Text;
+
+            if (text == null)
+            {
+                return Task.FromResult(false);
+            }
+
+            if (!Regex.IsMatch(text, ProfessionRegexp))
+            {
+                return Task.FromResult(false);
+            }
+
+            botUser.StatisticsInfo.Profession = text;
+
+            return Task.FromResult(true);
+        }
+
+        private static async Task InitProfessionAsync(TelegramBotClient client, BotUser botUser)
+        {
+            var msg = await client.SendTextMessageAsync(
+                botUser.ChatId,
+                "Напишите, пожалуйста, вашу профессию",
+                replyMarkup: CancelKeyboard);
+
+            botUser.History.AddMessage(msg, false);
+        }
     }
 
     public static partial class StatisticsStageHandling
     {
         private static AsyncStatisticsMessageProcessor GetAsyncStatisticsMessageProcessor(StatisticsStage stage)
         {
-            if (stage == StatisticsStage.Age)
+            switch (stage)
             {
-                return TryProcessAgeAsync;
+                case StatisticsStage.Age:
+                    return TryProcessAgeAsync;
+                case StatisticsStage.WorkingOrStudying:
+                    return ProcessWorkingOrStudyingAsync;
+                case StatisticsStage.Profession:
+                    return ProcessProfessionAsync;
+                default:
+                    throw new NotSupportedException(stage.ToString() + " is not supported");
             }
-            if (stage == StatisticsStage.WorkingOrStudying)
-            {
-                return ProcessWorkingOrStudyingAsync;
-            }
-
-            throw new NotSupportedException(stage.ToString() + " is not supported");
         }
 
         private static AsyncStatisticsStageInitializer GetAsyncStatisticsStageInitializer(StatisticsStage stage)
         {
-            if (stage == StatisticsStage.Age)
+            switch (stage)
             {
-                return InitAgeStageAsync;
+                case StatisticsStage.Age:
+                    return InitAgeStageAsync;
+                case StatisticsStage.WorkingOrStudying:
+                    return InitWorkingOrStudyingAsync;
+                case StatisticsStage.Profession:
+                    return InitProfessionAsync;
+                default:
+                    throw new NotSupportedException(stage.ToString() + " is not supported");
             }
-            if (stage == StatisticsStage.WorkingOrStudying)
-            {
-                return InitWorkingOrStudyingAsync;
-            }
-
-            throw new NotSupportedException(stage.ToString() + " is not supported");
         }
     }
 }

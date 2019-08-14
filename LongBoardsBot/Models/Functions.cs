@@ -350,7 +350,7 @@ namespace LongBoardsBot.Models
 
             var target = Path.Combine(thisLBDirectory, PhotosForLBFileName);
 
-            var tokens = await System.IO.File.ReadAllLinesAsync(target);
+            var tokens = await ReadAllLinesAsync(target);
 
             var photos = tokens.Select(i => new InputMediaPhoto(i)).ToArray();
 

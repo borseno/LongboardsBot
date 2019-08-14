@@ -45,10 +45,11 @@ namespace LongBoardsBot.Models
 
     static partial class Constants
     {
-        public const string NameRegexp = @"^[а-яА-Яa-zA-Z][а-яa-z]*$";
+        public const string ProfessionRegexp = @"^[а-яА-Яa-zA-Z ]{1,75}$";
+        public const string NameRegexp = @"^[а-яА-Яa-zA-Z]{1,}$";
         public const string PhoneRegexp = @"^\+?3?8?(0[5-9][0-9]\d{7})$";
     }
-
+    
     static partial class Constants
     {
         public const string DateTimeFormat = @"dd.MM.yyyy HH:mm";
