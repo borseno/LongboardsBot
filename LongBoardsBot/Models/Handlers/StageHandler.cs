@@ -370,7 +370,8 @@ namespace LongBoardsBot.Models.Handlers
                         {
                             if (text == RestartText)
                             {
-                                await StartNewDialog(instance, client);
+                                var msg = await StartNewDialog(instance, client);
+                                instance.History.AddMessage(msg, false);
                             }
 
                             break;

@@ -142,7 +142,9 @@ namespace LongBoardsBot.Models
         public static async Task RestartPurchasing(BotUser instance, TelegramBotClient client)
         {
             await ClearHistory(instance, client);
-            await StartNewDialog(instance, client);
+
+            var msg = await StartNewDialog(instance, client);
+            instance.History.AddMessage(msg, false);
         }
 
         /// <summary>
@@ -154,7 +156,7 @@ namespace LongBoardsBot.Models
         /// <param name="instance"></param>
         /// <param name="client"></param>
         /// <returns></returns>
-        public static Task StartNewDialog(BotUser instance, TelegramBotClient client)
+        public static Task<Message> StartNewDialog(BotUser instance, TelegramBotClient client)
         {
             instance.Stage = Stage.ReceivingMenuItem;
 

@@ -67,8 +67,10 @@ namespace LongBoardsBot.Models.Handlers
             botUser.State = State.Default;
             botUser.StatisticsStage = StatisticsStage.None;
 
-            await client.SendMenuAsync(botUser);
+            var msg = await client.SendMenuAsync(botUser);
+
             botUser.Stage = Stage.ReceivingMenuItem;
+            botUser.History.AddMessage(msg, false);
         }
     }
 
