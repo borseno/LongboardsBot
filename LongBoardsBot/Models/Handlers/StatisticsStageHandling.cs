@@ -7,6 +7,7 @@ using System;
 using static LongBoardsBot.Models.Constants;
 using Telegram.Bot.Types.ReplyMarkups;
 using System.Text.RegularExpressions;
+using System.Linq;
 
 namespace LongBoardsBot.Models.Handlers
 {
@@ -37,8 +38,9 @@ namespace LongBoardsBot.Models.Handlers
             var stage = botUser.StatisticsStage;
             var isLast = stage == last;
             var isCancelled = text == CancelText;
+            var shouldSkip = text == SkipText;
 
-            if (!isCancelled)
+            if (!isCancelled && !shouldSkip)
             {
                 var processor = GetAsyncStatisticsMessageProcessor(stage);
 
@@ -99,16 +101,14 @@ namespace LongBoardsBot.Models.Handlers
 
         private static async Task InitWorkingOrStudyingAsync(TelegramBotClient client, BotUser botUser)
         {
+            var workingButton = new KeyboardButton(WorkingText);
+            var studyingButton = new KeyboardButton(StudyingText);
+            var kboard = DefaultStatisticsKeyboard.Append(workingButton, studyingButton);
+
             var msg = await client.SendTextMessageAsync(
                     botUser.ChatId,
                     "Вы работаете или учитесь?",
-                    replyMarkup: new ReplyKeyboardMarkup(
-                        new[]
-                        {
-                            new KeyboardButton(StudyingText),
-                            new KeyboardButton(WorkingText),
-                            new KeyboardButton(CancelText)
-                        }, true, true)
+                    replyMarkup: kboard
                     );
 
             botUser.History.AddMessage(msg, false);
@@ -158,7 +158,7 @@ namespace LongBoardsBot.Models.Handlers
                 .SendTextMessageAsync(
                 botUser.ChatId, 
                 $"Напишите пожалуйста о своем хобби (макс: {MaxHobbySymbols} символов)",
-                replyMarkup: CancelKeyboard);
+                replyMarkup: DefaultStatisticsKeyboard);
 
             botUser.History.AddMessage(msg, false);
         }
@@ -184,7 +184,7 @@ namespace LongBoardsBot.Models.Handlers
             var msg = await client.SendTextMessageAsync(
                 botUser.ChatId,
                 "Напишите, пожалуйста, вашу профессию",
-                replyMarkup: CancelKeyboard);
+                replyMarkup: DefaultStatisticsKeyboard);
 
             botUser.History.AddMessage(msg, false);
         }

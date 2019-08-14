@@ -170,6 +170,8 @@ namespace LongBoardsBot.Models
 
     static partial class Constants
     {
+        public const string SkipText = "Пропустить";
+
         public static ReplyKeyboardMarkup WantsToSendReviewOrNotKboard
             => new ReplyKeyboardMarkup(
                     new[] {
@@ -177,11 +179,18 @@ namespace LongBoardsBot.Models
                         new KeyboardButton(NotWantsAddComment)
                     }, true, true);
 
-        public static ReplyKeyboardMarkup CancelKeyboard
+        public static ReplyKeyboardMarkup DefaultStatisticsKeyboard
             => new ReplyKeyboardMarkup(
                     new[]
                     {
-                        new KeyboardButton(CancelText)
+                        CancelButton,
+                        SkipButton
                     }, true, true);
+
+        public static KeyboardButton CancelButton
+            => new KeyboardButton(CancelText);
+
+        public static KeyboardButton SkipButton
+            => new KeyboardButton(SkipText);
     }
 }
