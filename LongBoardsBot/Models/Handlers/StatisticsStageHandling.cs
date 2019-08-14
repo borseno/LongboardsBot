@@ -5,12 +5,13 @@ using LongBoardsBot.Helpers;
 using Telegram.Bot.Types;
 using System;
 using static LongBoardsBot.Models.Constants;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace LongBoardsBot.Models.Handlers
 {
     public static partial class StatisticsStageHandling
     {
-        private const StatisticsStage last = StatisticsStage.Age;
+        private const StatisticsStage last = StatisticsStage.WorkingOrStudying;
 
         // indicates whether a move to a next state should be done or not
         private delegate Task<bool> AsyncStatisticsMessageProcessor(TelegramBotClient client, Message message, BotUser botUser);
@@ -29,7 +30,7 @@ namespace LongBoardsBot.Models.Handlers
         {
             var stage = botUser.StatisticsStage;
             var isLast = stage == last;
-            var isCancelled = message.Text == CancelText;
+            var isCancelled = message?.Text == CancelText;
 
             if (!isCancelled)
             {
@@ -50,8 +51,8 @@ namespace LongBoardsBot.Models.Handlers
             else
             {
                 var nextStage = stage.GetNext();
-                var nextStageInitializer = GetAsyncStatisticsStageInitializer(nextStage);
-                await nextStageInitializer.Invoke(client, botUser);
+
+                await InitStatisticsStageAsync(client, nextStage, botUser);
             }
         }
 
@@ -63,15 +64,48 @@ namespace LongBoardsBot.Models.Handlers
             await client.SendMenuAsync(botUser);
             botUser.Stage = Stage.ReceivingMenuItem;
         }
-
-        private static Task<bool> ProcessWorkingOrStudyingAsync(TelegramBotClient client, Message message, BotUser botUser)
-        {
-            throw new NotImplementedException();
-        }
     }
 
     public static partial class StatisticsStageHandling
     {
+        private const string StudyingText = "Учусь";
+        private const string WorkingText = "Работаю";
+
+        private static Task<bool> ProcessWorkingOrStudyingAsync(TelegramBotClient client, Message message, BotUser botUser)
+        {
+            var status =
+                message?.Text == StudyingText ? SocialStatus.Studying
+                : message?.Text == WorkingText ? SocialStatus.Employeed
+                : SocialStatus.Unknown;
+
+            if (status == SocialStatus.Unknown)
+            {
+                return Task.FromResult(false);
+            }
+            else
+            {
+                botUser.StatisticsInfo.SocialStatus = status;
+                return Task.FromResult(true);
+            }
+        }
+
+        private static async Task InitWorkingOrStudyingAsync(TelegramBotClient client, BotUser botUser)
+        {
+            var msg = await client.SendTextMessageAsync(
+                    botUser.ChatId,
+                    "Вы работаете или учитесь?",
+                    replyMarkup: new ReplyKeyboardMarkup(
+                        new[]
+                        {
+                            new KeyboardButton(StudyingText),
+                            new KeyboardButton(WorkingText),
+                            new KeyboardButton(CancelText)
+                        }, true, true)
+                    );
+
+            botUser.History.AddMessage(msg, false);
+        }
+
         private static async Task InitAgeStageAsync(TelegramBotClient client, BotUser botUser)
         {
             var msg = await client.AskAge(botUser.ChatId);
@@ -79,14 +113,14 @@ namespace LongBoardsBot.Models.Handlers
             botUser.History.AddMessage(msg, false);
         }
 
-        private static async Task<bool> TryProcessAgeAsync(
+        private static Task<bool> TryProcessAgeAsync(
             TelegramBotClient client, Message message, 
             BotUser botUser)
         {
             var text = message.Text;
 
             if (text == null)
-                return false;
+                return Task.FromResult(false);
 
             var success = Int32.TryParse(text, out var age);
 
@@ -94,10 +128,10 @@ namespace LongBoardsBot.Models.Handlers
             {
                 botUser.StatisticsInfo.Age = age;
 
-                return true;
+                return Task.FromResult(true);
             }
 
-            return false;
+            return Task.FromResult(false);
         }
     }
 
@@ -122,6 +156,10 @@ namespace LongBoardsBot.Models.Handlers
             if (stage == StatisticsStage.Age)
             {
                 return InitAgeStageAsync;
+            }
+            if (stage == StatisticsStage.WorkingOrStudying)
+            {
+                return InitWorkingOrStudyingAsync;
             }
 
             throw new NotSupportedException(stage.ToString() + " is not supported");

@@ -17,6 +17,14 @@ namespace LongBoardsBot.Models
 
         protected override void OnModelCreating(ModelBuilder blder)
         {
+            blder.Entity<UserStatistics>()
+                .Property(i => i.SocialStatus)
+                .HasConversion<int>();
+
+            blder.Entity<UserStatistics>()
+                .Property(i => i.SocialStatus)
+                .HasDefaultValue(SocialStatus.Unknown);
+
             blder.Entity<BotUser>()
                 .Property(bu => bu.Stage)
                 .HasConversion<int>();

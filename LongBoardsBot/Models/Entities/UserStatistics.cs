@@ -2,6 +2,13 @@
 
 namespace LongBoardsBot.Models.Entities
 {
+    public enum SocialStatus
+    {
+        Unknown,
+        Employeed,
+        Studying
+    }
+
     public class UserStatistics
     {
         public long BotUserId { get; set; }
@@ -9,5 +16,7 @@ namespace LongBoardsBot.Models.Entities
 
         [Range(0, 150)]
         public int Age { get; set; }
+
+        public SocialStatus SocialStatus { get; set; }
     }
 }
