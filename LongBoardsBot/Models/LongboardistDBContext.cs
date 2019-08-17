@@ -16,7 +16,7 @@ namespace LongBoardsBot.Models
         public DbSet<Comment> Comments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder blder)
-        {
+        {        
             blder.Entity<UserStatistics>()
                 .Property(i => i.SocialStatus)
                 .HasConversion<int>();
@@ -104,6 +104,17 @@ namespace LongBoardsBot.Models
 
             blder.Entity<TestingInfo>()
                 .HasKey(i => i.BotUserId);
+
+            blder.Entity<LongBoard>()
+                .HasIndex(i => i.Style)
+                .IsUnique();
+
+            blder.Entity<LongBoard>()
+                .HasData(
+                new LongBoard { Amount = 4, Style = "Cruiser", Price = 2849m, Id = -1 },
+                new LongBoard { Amount = 4, Style = "Downhill", Price = 3049m, Id = -2 },
+                new LongBoard { Amount = 4, Style = "Carving", Price = 2649m, Id = -3 }
+                );
         }
     }
 }
