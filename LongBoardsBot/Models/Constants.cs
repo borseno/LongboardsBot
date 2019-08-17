@@ -9,10 +9,10 @@ namespace LongBoardsBot.Models
     static partial class Constants
     {
         public const string Url = "https://longboardistbot1.azurewebsites.net:443/";
-        public const string NickName = "@LongBoard_Dev_Bot"; // nickname (the one that starts with @)
-        public const string ApiKey = @"821836757:AAHFbFgSrbrvpGVpzCYWZAwG2Jzo7Cbl1m8";
+        public const string NickName = "LongboardistBot"; // nickname (the one that starts with @)
+        public const string ApiKey = @"678399349:AAF9TQBnP3uMT1Jn_CjewoohpmgOoGMo6Lo";
         public const long AdminGroupChatId = -1001181244049;
-        public const long BugReportChatId = 777785046;
+        public const long BugReportChatId = 446310692;
     }
 
     static partial class Constants
