@@ -24,9 +24,10 @@ namespace LongBoardsBot
         public void ConfigureServices(IServiceCollection services)
         {
             var connectionString = Configuration.GetConnectionString("LongBoardist");
-            var url = "https://longboardistbotvitya.azurewebsites.net:443/";
-
-            TelegramBotClient bot = GetNewBot(ApiKey, url);
+            
+            var botSettings = Configuration.GetSection("BotSettings").Get<BotSettings>();
+            
+            TelegramBotClient bot = GetNewBot(botSettings.ApiKey, botSettings.WebHookUrl);
 
             services.AddSingleton(bot);
             services.AddScoped<StageHandler>();
