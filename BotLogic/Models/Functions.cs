@@ -6,8 +6,6 @@ using Telegram.Bot.Types;
 using System.Linq;
 using System.IO;
 using static LongBoardsBot.Models.Constants;
-using System.Drawing;
-using System.Drawing.Imaging;
 using Telegram.Bot.Types.ReplyMarkups;
 using LongBoardsBot.Helpers;
 using LongBoardsBot.Models.Entities;
@@ -15,6 +13,7 @@ using Telegram.Bot.Exceptions;
 using static System.String;
 using static System.IO.File;
 using LongBoardsBot.Models.TextsFunctions;
+using BotLogic.Helpers;
 
 namespace LongBoardsBot.Models
 {

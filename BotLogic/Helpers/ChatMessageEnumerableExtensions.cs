@@ -1,9 +1,10 @@
-﻿using LongBoardsBot.Models.Entities;
+﻿using LongBoardsBot.Helpers;
+using LongBoardsBot.Models.Entities;
 using System.Collections.Generic;
 using System.Linq;
 using Telegram.Bot.Types;
 
-namespace LongBoardsBot.Helpers
+namespace BotLogic.Helpers
 {
     public static class ChatMessageExtensions
     {

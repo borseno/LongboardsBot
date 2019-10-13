@@ -54,7 +54,7 @@ namespace LongBoardsBot.Models
 
             blder.Entity<BotUserLongBoard>()
                 .Property(i => i.Id)
-                .UseSqlServerIdentityColumn();
+                .UseIdentityColumn(); // replace with something cross-db
 
             blder.Entity<BotUser>()
                 .Property(i => i.ChatId)

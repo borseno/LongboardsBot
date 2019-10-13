@@ -17,6 +17,7 @@ using static LongBoardsBot.Models.TextsFunctions.FormattedTexts;
 using LongBoardsBot.Models.TextsFunctions;
 using Telegram.Bot.Types.Enums;
 using System.Globalization;
+using BotLogic.Helpers;
 
 namespace LongBoardsBot.Models.Handlers
 {

@@ -6,9 +6,8 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace LongBoardsBot.Models
 {
-    static partial class Constants
+    public static partial class Constants
     {
-        public const string Url = "https://longboardistbotvitya.azurewebsites.net:443/";
         public const string NickName = "LongboardistBot"; // nickname (the one that starts with @)
         public const string ApiKey = @"678399349:AAF9TQBnP3uMT1Jn_CjewoohpmgOoGMo6Lo";
         public const long AdminGroupChatId = -1001181244049;
